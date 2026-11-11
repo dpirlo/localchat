@@ -4,6 +4,54 @@ $serverPath = Join-Path $PSScriptRoot 'server.js'
 $ollamaStartedByLauncher = $false
 $ollamaProcess = $null
 $nodeProcess = $null
+$previousPowerSchemeGuid = $null
+$performanceProfileEnabled = $false
+
+function Set-GpuHighPerformancePreference {
+    param([string]$ExecutablePath)
+    if (-not $ExecutablePath -or -not (Test-Path -LiteralPath $ExecutablePath)) { return }
+    try {
+        $gpuPreferencePath = 'HKCU:\Software\Microsoft\DirectX\UserGpuPreferences'
+        New-Item -Path $gpuPreferencePath -Force | Out-Null
+        New-ItemProperty -Path $gpuPreferencePath -Name $ExecutablePath -PropertyType String -Value 'GpuPreference=2;' -Force | Out-Null
+    }
+    catch {}
+}
+
+function Enable-PerformanceProfile {
+    try {
+        $activeScheme = (& powercfg.exe /getactivescheme 2>$null) -join ' '
+        $schemeMatch = [regex]::Match($activeScheme, '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}')
+        if ($schemeMatch.Success) { $script:previousPowerSchemeGuid = $schemeMatch.Value }
+        & powercfg.exe /setactive SCHEME_MIN 2>$null | Out-Null
+        $script:performanceProfileEnabled = $true
+    }
+    catch {}
+
+    $ollamaCommand = Get-Command ollama.exe -ErrorAction SilentlyContinue
+    if ($ollamaCommand) {
+        Set-GpuHighPerformancePreference $ollamaCommand.Source
+        $ollamaFolder = Split-Path -Parent $ollamaCommand.Source
+        Set-GpuHighPerformancePreference (Join-Path $ollamaFolder 'lib\ollama\llama-server.exe')
+    }
+}
+
+function Restore-PerformanceProfile {
+    if (-not $performanceProfileEnabled -or -not $previousPowerSchemeGuid) { return }
+    try { & powercfg.exe /setactive $previousPowerSchemeGuid 2>$null | Out-Null }
+    catch {}
+}
+
+function Set-InferenceProcessPriority {
+    Get-Process -Name 'llama-server' -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            if ($_.PriorityClass -ne [System.Diagnostics.ProcessPriorityClass]::AboveNormal) {
+                $_.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::AboveNormal
+            }
+        }
+        catch {}
+    }
+}
 
 function Test-ChatServer {
     try {
@@ -39,6 +87,9 @@ function Test-OllamaServer {
     }
     catch { return $false }
 }
+
+try {
+    Enable-PerformanceProfile
 
 if (-not (Test-OllamaServer)) {
     $ollamaCommand = Get-Command ollama.exe -ErrorAction SilentlyContinue
@@ -91,14 +142,17 @@ $chromeCandidates = @(
 )
 $chrome = $chromeCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
 
-try {
-    if ($chrome) {
-        Start-Process $chrome -ArgumentList @("--app=$appUrl", '--start-maximized')
-    }
-    else {
-        Start-Process $appUrl
-    }
-    Wait-Process -Id $nodeProcess.Id
+if ($chrome) {
+    Start-Process $chrome -ArgumentList @("--app=$appUrl", '--start-maximized')
+}
+else {
+    Start-Process $appUrl
+}
+
+while ($nodeProcess -and -not $nodeProcess.HasExited) {
+    Set-InferenceProcessPriority
+    Start-Sleep -Milliseconds 750
+}
 }
 finally {
     if ($nodeProcess -and -not $nodeProcess.HasExited) {
@@ -107,4 +161,5 @@ finally {
     if ($ollamaStartedByLauncher -and $ollamaProcess -and -not $ollamaProcess.HasExited) {
         Stop-Process -Id $ollamaProcess.Id -Force -ErrorAction SilentlyContinue
     }
+    Restore-PerformanceProfile
 }

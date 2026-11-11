@@ -9,7 +9,16 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.argv[2] || 8765);
 const HTML_PATH = path.join(__dirname, 'index.html');
 const LOCAL_CONFIG_PATH = path.join(__dirname, 'config.local.json');
-const APP_VERSION = '2026.11.03.1';
+const APP_VERSION = '2026.11.10.1';
+const LITTERBOX_UPLOAD_URL = 'https://litterbox.catbox.moe/resources/internals/api.php';
+const MAX_PDF_BYTES = 12 * 1024 * 1024;
+const MAX_PDF_TEXT_CHARS = 12_000;
+const REVERSE_IMAGE_ENGINES = [
+  { id: 'google', name: 'Google Lens', template: 'https://lens.google.com/uploadbyurl?url={IMAGE_URL}', encode: true },
+  { id: 'yandex', name: 'Yandex Images', template: 'https://yandex.com/images/search?rpt=imageview&url={IMAGE_URL}', encode: true },
+  { id: 'tineye', name: 'TinEye', template: 'https://tineye.com/search?url={IMAGE_URL}', encode: true },
+  { id: 'ascii2d', name: 'Ascii2D', template: 'https://ascii2d.net/search/url/{IMAGE_URL}', encode: false }
+];
 const SERVER_STARTED_AT = Date.now();
 let clientSeen = false;
 let lastHeartbeat = 0;
@@ -197,6 +206,124 @@ function isSafePublicUrl(rawUrl) {
   } catch {
     return false;
   }
+}
+
+function reverseImageSearchUrls(imageUrl) {
+  return REVERSE_IMAGE_ENGINES.map(engine => {
+    const value = engine.encode ? encodeURIComponent(imageUrl) : imageUrl;
+    return {
+      id: engine.id,
+      name: engine.name,
+      url: engine.template.replace('{IMAGE_URL}', value)
+    };
+  });
+}
+
+async function uploadTemporaryImage(imageBase64, imageType, imageName) {
+  const allowedTypes = new Map([
+    ['image/jpeg', 'jpg'],
+    ['image/png', 'png'],
+    ['image/webp', 'webp'],
+    ['image/gif', 'gif']
+  ]);
+  const extension = allowedTypes.get(String(imageType || '').toLowerCase());
+  if (!extension) throw new Error('El formato de imagen no es compatible. Usá JPG, PNG, WebP o GIF.');
+
+  const buffer = Buffer.from(String(imageBase64 || ''), 'base64');
+  if (!buffer.length) throw new Error('La imagen adjunta está vacía.');
+  if (buffer.length > 12 * 1024 * 1024) throw new Error('La imagen supera el máximo de 12 MB para búsqueda inversa.');
+
+  const safeBaseName = path.basename(String(imageName || `imagen.${extension}`))
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .slice(-100) || `imagen.${extension}`;
+  const fileName = safeBaseName.includes('.') ? safeBaseName : `${safeBaseName}.${extension}`;
+  const form = new FormData();
+  form.set('reqtype', 'fileupload');
+  form.set('time', '1h');
+  form.set('fileToUpload', new Blob([buffer], { type: imageType }), fileName);
+
+  const response = await fetch(LITTERBOX_UPLOAD_URL, {
+    method: 'POST',
+    body: form,
+    signal: AbortSignal.timeout(30_000)
+  });
+  const uploadedUrl = (await response.text()).trim();
+  if (!response.ok || !/^https:\/\/litter\.catbox\.moe\/[a-z0-9._-]+$/i.test(uploadedUrl)) {
+    throw new Error(`No se pudo preparar la imagen temporal${uploadedUrl ? `: ${uploadedUrl.slice(0, 160)}` : '.'}`);
+  }
+  return uploadedUrl;
+}
+
+async function handleReverseImageSearch(req, res) {
+  const body = await readJson(req);
+  const suppliedUrl = String(body.imageUrl || '').trim();
+  const hasUpload = Boolean(body.imageBase64);
+  if (!suppliedUrl && !hasUpload) {
+    return sendJson(res, 400, { error: 'Adjuntá una imagen o enviá una URL pública.' });
+  }
+
+  let imageUrl = suppliedUrl;
+  let temporary = false;
+  if (hasUpload) {
+    imageUrl = await uploadTemporaryImage(body.imageBase64, body.imageType, body.imageName);
+    temporary = true;
+  } else if (!isSafePublicUrl(imageUrl)) {
+    return sendJson(res, 400, { error: 'La URL de la imagen debe ser pública y usar HTTP o HTTPS.' });
+  }
+
+  return sendJson(res, 200, {
+    ok: true,
+    sourceUrl: imageUrl,
+    temporary,
+    expiresIn: temporary ? '1 hora' : null,
+    engines: reverseImageSearchUrls(imageUrl)
+  });
+}
+
+async function handlePdfText(req, res) {
+  const body = await readJson(req);
+  const buffer = Buffer.from(String(body.pdfBase64 || ''), 'base64');
+  if (!buffer.length) return sendJson(res, 400, { error: 'El PDF está vacío.' });
+  if (buffer.length > MAX_PDF_BYTES) {
+    return sendJson(res, 413, { error: 'El PDF supera el máximo de 12 MB.' });
+  }
+  if (buffer.subarray(0, 5).toString('ascii') !== '%PDF-') {
+    return sendJson(res, 400, { error: 'El archivo no parece ser un PDF válido.' });
+  }
+
+  let PDFParse;
+  try {
+    ({ PDFParse } = require('pdf-parse'));
+  } catch {
+    throw new Error('Falta el lector de PDF. Ejecutá npm install dentro de la carpeta IA-Local.');
+  }
+
+  const parser = new PDFParse({ data: buffer });
+  let result;
+  try {
+    result = await parser.getText();
+  } finally {
+    await parser.destroy().catch(() => {});
+  }
+
+  const fullText = String(result?.text || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (!fullText) {
+    return sendJson(res, 422, {
+      error: 'No encontré texto seleccionable en el PDF. Por ahora no está habilitado el OCR para PDFs escaneados.'
+    });
+  }
+
+  const truncated = fullText.length > MAX_PDF_TEXT_CHARS;
+  return sendJson(res, 200, {
+    ok: true,
+    text: fullText.slice(0, MAX_PDF_TEXT_CHARS),
+    truncated,
+    pageCount: Number(result?.total || result?.pages?.length || 0) || null
+  });
 }
 
 async function fetchPublicPage(rawUrl) {
@@ -390,6 +517,12 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url.pathname === '/api/notify') {
       showWindowsNotification();
       return sendJson(res, 202, { ok: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/reverse-image-search') {
+      return await handleReverseImageSearch(req, res);
+    }
+    if (req.method === 'POST' && url.pathname === '/api/pdf-text') {
+      return await handlePdfText(req, res);
     }
     if (req.method === 'GET' && url.pathname === '/api/models') return await handleModels(res);
     if (req.method === 'POST' && url.pathname === '/api/chat') return await handleChat(req, res);

@@ -275,11 +275,26 @@
     }
 
     .message.assistant {
+      position: relative;
       align-self: flex-start;
       border: 1px solid #30343d;
       border-bottom-left-radius: 4px;
       background: #1a1d23;
       color: #e6e7eb;
+    }
+
+    .message.assistant[data-duration] { margin-bottom: 16px; }
+
+    .message.assistant[data-duration]::after {
+      content: attr(data-duration);
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 4px;
+      color: #777c88;
+      font-size: .68rem;
+      font-weight: 500;
+      line-height: 1;
+      white-space: nowrap;
     }
 
     .message.error {
@@ -288,6 +303,17 @@
       background: rgba(251, 113, 133, .08);
       color: #fda4af;
       font-size: .84rem;
+    }
+
+    .message-image-preview {
+      display: block;
+      width: min(320px, 100%);
+      max-height: 240px;
+      margin-top: 9px;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 10px;
+      object-fit: contain;
+      background: rgba(0, 0, 0, .2);
     }
 
     .message.assistant p { margin: 0 0 .8em; }
@@ -469,8 +495,8 @@
         <div id="welcome" class="welcome">Empezá una conversación.</div>
       </div>
       <div class="attachment">
-        <label class="attach-label" for="imageInput">📎 Adjuntar imagen</label>
-        <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <label class="attach-label" for="imageInput">📎 Adjuntar archivo</label>
+        <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,.pdf" />
         <span id="attachedName" class="attached-name"></span>
       </div>
       <textarea id="prompt" placeholder="Escribí tu mensaje…" autofocus></textarea>
@@ -521,6 +547,9 @@
     const MAX_SAVED_MESSAGE_CHARS = 3000;
     const MAX_CONTEXT_MESSAGES = 12;
     const MAX_CONTEXT_CHARS = 12000;
+    const REVERSE_SEARCH_ENGINE_NAMES = [
+      'Google Lens', 'Yandex Images', 'TinEye', 'Ascii2D'
+    ];
     const DEFAULT_DOCUMENT_TITLE = document.title;
     const LOADING_FAVICON = `data:image/svg+xml,${encodeURIComponent(`
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -602,6 +631,21 @@
       messagesBox.append(bubble);
       messagesBox.scrollTop = messagesBox.scrollHeight;
       return bubble;
+    }
+
+    function formatWorkDuration(durationMs) {
+      const totalSeconds = Math.max(0, Number(durationMs) || 0) / 1000;
+      if (totalSeconds < 1) return 'Trabajó durante menos de 1 s';
+      if (totalSeconds < 10) return `Trabajó durante ${totalSeconds.toFixed(1).replace('.', ',')} s`;
+      if (totalSeconds < 60) return `Trabajó durante ${Math.round(totalSeconds)} s`;
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = Math.round(totalSeconds % 60);
+      return `Trabajó durante ${minutes} min${seconds ? ` ${seconds} s` : ''}`;
+    }
+
+    function setMessageDuration(bubble, durationMs) {
+      if (!bubble || !Number.isFinite(durationMs) || durationMs < 0) return;
+      bubble.dataset.duration = formatWorkDuration(durationMs);
     }
 
     function plainTextForCopy(value) {
@@ -709,7 +753,10 @@
       if (!activeConversationId) activeConversationId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const savedMessages = history.slice(-MAX_SAVED_MESSAGES).map(message => ({
         role: message.role,
-        content: String(message.content || '').slice(0, MAX_SAVED_MESSAGE_CHARS)
+        content: String(message.content || '').slice(0, MAX_SAVED_MESSAGE_CHARS),
+        ...(Number.isFinite(message.durationMs) && message.durationMs >= 0
+          ? { durationMs: Math.round(message.durationMs) }
+          : {})
       })).filter(message => ['user', 'assistant'].includes(message.role) && message.content);
       const existing = conversations.find(item => item.id === activeConversationId);
       const conversation = {
@@ -731,7 +778,7 @@
       let characterCount = 0;
       for (let index = history.length - 1; index >= 0 && selected.length < MAX_CONTEXT_MESSAGES; index--) {
         const message = history[index];
-        const content = String(message.content || '');
+        const content = String(message.contextContent || message.content || '');
         if (!content || !['user', 'assistant'].includes(message.role)) continue;
         if (characterCount + content.length > MAX_CONTEXT_CHARS && selected.length) break;
         const contextMessage = { role: message.role, content: content.slice(0, MAX_CONTEXT_CHARS - characterCount) };
@@ -755,7 +802,10 @@
       }
       for (const message of history) {
         const bubble = addMessage(message.role, message.content);
-        if (message.role === 'assistant') bubble.innerHTML = renderMarkdown(message.content);
+        if (message.role === 'assistant') {
+          bubble.innerHTML = renderMarkdown(message.content);
+          setMessageDuration(bubble, message.durationMs);
+        }
       }
       messagesBox.scrollTop = messagesBox.scrollHeight;
     }
@@ -764,7 +814,11 @@
       const conversation = conversations.find(item => item.id === id);
       if (!conversation || controller) return;
       activeConversationId = conversation.id;
-      history = conversation.messages.map(message => ({ role: message.role, content: message.content }));
+      history = conversation.messages.map(message => ({
+        role: message.role,
+        content: message.content,
+        ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {})
+      }));
       writeStoredConversations();
       renderActiveConversation();
       renderConversationList();
@@ -840,7 +894,13 @@
 
     function restoreLastConversation() {
       const conversation = conversations.find(item => item.id === activeConversationId);
-      if (conversation) history = conversation.messages.map(message => ({ role: message.role, content: message.content }));
+      if (conversation) {
+        history = conversation.messages.map(message => ({
+          role: message.role,
+          content: message.content,
+          ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {})
+        }));
+      }
       else activeConversationId = null;
       renderActiveConversation();
       renderConversationList();
@@ -959,9 +1019,54 @@
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-        reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo.'));
         reader.readAsDataURL(file);
       });
+    }
+
+    function extractFirstPublicUrl(text) {
+      const match = String(text || '').match(/https?:\/\/[^\s<>"']+/i);
+      return match ? match[0].replace(/[),.;!?]+$/, '') : '';
+    }
+
+    function isReverseImageSearch(prompt, imageFile, imageUrl) {
+      if (!imageFile && !imageUrl) return false;
+      const text = String(prompt || '').toLocaleLowerCase('es');
+      const explicit = /\b(b[uú]squeda inversa|buscar por imagen|reverse image)\b/i.test(text);
+      const searchVerb = /\b(busca|buscá|buscar|buscame|búscame|buscala|buscála|buscalo|buscálo|rastrear|rastreá|encontrar|encontrá)\b/i.test(text);
+      return explicit || searchVerb;
+    }
+
+    function openReverseSearchTabs() {
+      return REVERSE_SEARCH_ENGINE_NAMES.map(name => {
+        const tab = window.open('about:blank', '_blank');
+        if (!tab) return null;
+        try {
+          tab.document.title = `Preparando ${name}…`;
+          tab.document.body.style.cssText = 'margin:0;display:grid;place-items:center;min-height:100vh;background:#111318;color:#e6e7eb;font:16px system-ui';
+          tab.document.body.textContent = `Preparando búsqueda en ${name}…`;
+        } catch {}
+        return tab;
+      });
+    }
+
+    function closePendingSearchTabs(tabs) {
+      for (const tab of tabs) {
+        try { if (tab && !tab.closed) tab.close(); }
+        catch {}
+      }
+    }
+
+    function addImagePreview(bubble, file) {
+      if (!bubble || !file) return;
+      const previewUrl = URL.createObjectURL(file);
+      const image = document.createElement('img');
+      image.className = 'message-image-preview';
+      image.alt = file.name || 'Imagen adjunta';
+      image.src = previewUrl;
+      image.addEventListener('load', () => URL.revokeObjectURL(previewUrl), { once: true });
+      image.addEventListener('error', () => URL.revokeObjectURL(previewUrl), { once: true });
+      bubble.append(image);
     }
 
     async function loadModels() {
@@ -1007,29 +1112,43 @@
     }
 
     async function sendPrompt() {
-      const imageFile = imageInput.files?.[0] || null;
-      const prompt = promptInput.value.trim() || (imageFile ? 'Describí esta imagen.' : '');
+      const attachedFile = imageInput.files?.[0] || null;
+      const isPdf = Boolean(attachedFile && (attachedFile.type === 'application/pdf' || /\.pdf$/i.test(attachedFile.name)));
+      const imageFile = attachedFile && !isPdf ? attachedFile : null;
+      const prompt = promptInput.value.trim() || (isPdf ? 'Resumí este PDF.' : (imageFile ? 'Describí esta imagen.' : ''));
       const model = modelInput.value.trim();
-      if (!prompt || !model || controller) return;
+      const imageUrl = extractFirstPublicUrl(prompt);
+      const reverseImageSearch = !isPdf && isReverseImageSearch(prompt, imageFile, imageUrl);
+      if (!prompt || controller || (!model && !reverseImageSearch)) return;
 
-      if (imageFile && !model.toLowerCase().startsWith('qwen2.5vl:3b')) {
+      const reverseSearchTabs = reverseImageSearch ? openReverseSearchTabs() : [];
+      let reverseSearchNavigated = false;
+
+      if (attachedFile && !isPdf && !/^image\/(png|jpeg|webp|gif)$/i.test(attachedFile.type)) {
+        addMessage('error', 'El archivo no es compatible. Adjuntá un PDF, JPG, PNG, WebP o GIF.');
+        return;
+      }
+
+      if (imageFile && !reverseImageSearch && !model.toLowerCase().startsWith('qwen2.5vl:3b')) {
         addMessage('error', 'Para adjuntar imágenes seleccioná qwen2.5vl:3b, marcado como Visual.');
         return;
       }
 
       const needsCurrentInfo = /\b(busca|buscá|buscame|búscame|internet|hoy|ahora|actual|actuales|temperatura|clima|noticias|eventos|actividades)\b/i.test(prompt);
-      if (needsCurrentInfo && !useWebInput.checked) {
+      if (!reverseImageSearch && !isPdf && needsCurrentInfo && !useWebInput.checked) {
         errorBox.style.display = 'none';
         addMessage('error', 'Esta consulta necesita información actual. Activá “Internet” arriba y volvé a enviarla.');
         return;
       }
 
+      const workStartedAt = performance.now();
       void requestNotificationPermission();
-      let imageBase64 = '';
-      if (imageFile) {
+      let attachmentBase64 = '';
+      if (attachedFile) {
         try {
-          imageBase64 = await fileAsBase64(imageFile);
+          attachmentBase64 = await fileAsBase64(attachedFile);
         } catch (error) {
+          closePendingSearchTabs(reverseSearchTabs);
           addMessage('error', error.message);
           return;
         }
@@ -1038,21 +1157,96 @@
       controller = new AbortController();
       setThinkingState(true);
       sendButton.disabled = true;
-      sendButton.textContent = 'Pensando…';
+      sendButton.textContent = reverseImageSearch ? 'Buscando…' : (isPdf ? 'Leyendo…' : 'Pensando…');
       errorBox.style.display = 'none';
-      setStatus('Generando…', 'ok');
-      addMessage('user', imageFile ? `${prompt}\n📎 ${imageFile.name}` : prompt);
+      setStatus(reverseImageSearch ? 'Preparando búsqueda inversa…' : (isPdf ? 'Leyendo PDF…' : 'Generando…'), 'ok');
+      const userBubble = addMessage('user', attachedFile ? `${prompt}\n${isPdf ? '📄' : '📎'} ${attachedFile.name}` : prompt);
+      addImagePreview(userBubble, imageFile);
       promptInput.value = '';
       const assistantBubble = addMessage('assistant');
       let assistantText = '';
       const userMessage = { role: 'user', content: prompt };
-      if (imageBase64) userMessage.images = [imageBase64];
+      if (attachmentBase64 && imageFile && !reverseImageSearch) userMessage.images = [attachmentBase64];
       history.push(userMessage);
       saveCurrentConversation();
       imageInput.value = '';
       attachedName.textContent = '';
 
       try {
+        if (reverseImageSearch) {
+          if (!usingNodeBridge) {
+            throw new Error('La búsqueda inversa necesita que abras la app con iniciar-chat.bat o IA-Local.exe.');
+          }
+          const response = await fetch('/api/reverse-image-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageUrl: imageFile ? '' : imageUrl,
+              imageBase64: imageFile ? attachmentBase64 : '',
+              imageType: imageFile?.type || '',
+              imageName: imageFile?.name || ''
+            }),
+            signal: controller.signal
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || `El servidor respondió ${response.status}`);
+
+          let openedCount = 0;
+          result.engines.forEach((engine, index) => {
+            const tab = reverseSearchTabs[index];
+            if (!tab || tab.closed) return;
+            try {
+              tab.location.replace(engine.url);
+              openedCount++;
+            } catch {}
+          });
+          reverseSearchNavigated = openedCount > 0;
+          const blockedCount = Math.max(0, result.engines.length - openedCount);
+          const lines = [
+            `Abrí ${openedCount} de ${result.engines.length} buscadores de imagen.`,
+            '',
+            ...result.engines.map(engine => `- [${engine.name}](${engine.url})`)
+          ];
+          if (result.temporary) {
+            lines.push('', 'La imagen adjunta se alojó temporalmente durante 1 hora para que los buscadores puedan verla.');
+          }
+          if (blockedCount) {
+            lines.push('', `El navegador bloqueó ${blockedCount} pestaña${blockedCount === 1 ? '' : 's'}. Habilitá las ventanas emergentes para http://127.0.0.1 y, mientras tanto, usá los enlaces de arriba.`);
+          }
+          assistantText = lines.join('\n');
+          assistantBubble.dataset.copyText = assistantText;
+          assistantBubble.innerHTML = renderMarkdown(assistantText);
+          const durationMs = Math.round(performance.now() - workStartedAt);
+          setMessageDuration(assistantBubble, durationMs);
+          history.push({ role: 'assistant', content: assistantText, durationMs });
+          saveCurrentConversation();
+          setStatus('Ollama conectado', 'ok');
+          void notifyAnswerReady();
+          return;
+        }
+
+        if (isPdf) {
+          if (!usingNodeBridge) {
+            throw new Error('Para leer PDFs, abrí la app con iniciar-chat.bat o IA-Local.exe.');
+          }
+          const pdfResponse = await fetch('/api/pdf-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pdfBase64: attachmentBase64,
+              fileName: attachedFile.name
+            }),
+            signal: controller.signal
+          });
+          const pdfResult = await pdfResponse.json().catch(() => ({}));
+          if (!pdfResponse.ok) throw new Error(pdfResult.error || `No se pudo leer el PDF (${pdfResponse.status}).`);
+          const documentNote = pdfResult.truncated
+            ? 'El texto fue recortado para ajustarlo al contexto disponible.'
+            : 'Se extrajo el texto completo disponible.';
+          userMessage.contextContent = `${prompt}\n\n[PDF ADJUNTO: ${attachedFile.name}. ${documentNote}]\n\n${pdfResult.text}`;
+          setStatus('Generando respuesta…', 'ok');
+        }
+
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const currentDate = new Intl.DateTimeFormat('es-AR', {
           dateStyle: 'full',
@@ -1068,7 +1262,7 @@
           throw new Error('Para usar Internet, abrí iniciar-chat.bat en vez del HTML directamente.');
         }
 
-        if (useWebInput.checked) setStatus('Buscando en Internet…', 'ok');
+        if (useWebInput.checked && !isPdf) setStatus('Buscando en Internet…', 'ok');
 
         const response = await fetch(usingNodeBridge ? '/api/chat' : `${baseUrl()}/api/chat`, {
           method: 'POST',
@@ -1077,7 +1271,7 @@
             model,
             messages: [systemMessage, ...contextHistory()],
             stream: true,
-            useWeb: useWebInput.checked,
+            useWeb: useWebInput.checked && !isPdf,
             ollamaUrl: baseUrl()
           }),
           signal: controller.signal
@@ -1126,11 +1320,14 @@
 
         assistantBubble.dataset.copyText = assistantText;
         assistantBubble.innerHTML = renderMarkdown(assistantText);
-        history.push({ role: 'assistant', content: assistantText });
+        const durationMs = Math.round(performance.now() - workStartedAt);
+        setMessageDuration(assistantBubble, durationMs);
+        history.push({ role: 'assistant', content: assistantText, durationMs });
         saveCurrentConversation();
         setStatus('Ollama conectado', 'ok');
         if (assistantText.trim()) void notifyAnswerReady();
       } catch (error) {
+        if (reverseImageSearch && !reverseSearchNavigated) closePendingSearchTabs(reverseSearchTabs);
         if (error.name !== 'AbortError') {
           showError(`No se pudo generar la respuesta: ${error.message}`);
           if (!assistantText) assistantBubble.remove();
