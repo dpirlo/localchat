@@ -18,7 +18,9 @@ La primera vez, ejecutá `npm install` dentro de esta carpeta para instalar el l
 - `IA Local.exe`: lanzador para anclar al Inicio o a la barra de tareas.
 - `src/IALocalLauncher.cs`: código fuente del lanzador.
 
-El historial se guarda localmente en el perfil de Chrome. Las imágenes y el contenido completo de los PDFs no se guardan en el historial.
+El historial completo se guarda localmente en IndexedDB dentro del perfil de Chrome, sin límites artificiales de conversaciones, mensajes o longitud. Al actualizar desde una versión anterior, el historial existente en `localStorage` se migra automáticamente y se conserva como respaldo. Las imágenes y el contenido completo de los PDFs no se guardan en el historial.
+
+Para no sobrecargar a Ollama, cada consulta envía únicamente el tramo reciente y los pares de mensajes anteriores más relacionados con la pregunta actual. Este recorte afecta sólo al contexto temporal del modelo, nunca al historial almacenado.
 
 Cada respuesta guarda y muestra su tiempo total de trabajo. Ese dato se conserva como metadato del historial y no se envía a Ollama como parte del contexto.
 
