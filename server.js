@@ -9,8 +9,9 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.argv[2] || 8765);
 const HTML_PATH = path.join(__dirname, 'index.html');
 const LOCAL_CONFIG_PATH = path.join(__dirname, 'config.local.json');
-const APP_VERSION = '2026.11.18.1';
+const APP_VERSION = '2026.11.18.3';
 const LITTERBOX_UPLOAD_URL = 'https://litterbox.catbox.moe/resources/internals/api.php';
+const UGUU_UPLOAD_URL = 'https://uguu.se/upload';
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const MAX_PDF_TEXT_CHARS = 12_000;
 const REVERSE_IMAGE_ENGINES = [
@@ -219,6 +220,96 @@ function reverseImageSearchUrls(imageUrl) {
   });
 }
 
+function temporaryUploadError(provider, message, transient = false) {
+  const error = new Error(`${provider}: ${message}`);
+  error.transient = transient;
+  return error;
+}
+
+function isTrustedTemporaryUrl(value, allowedHostname) {
+  try {
+    const url = new URL(value);
+    const trustedHost = url.hostname === allowedHostname || url.hostname.endsWith(`.${allowedHostname}`);
+    return url.protocol === 'https:' && trustedHost && url.pathname.length > 1;
+  } catch {
+    return false;
+  }
+}
+
+async function retryTemporaryUpload(upload, attempts = 2) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await upload();
+    } catch (error) {
+      lastError = error;
+      if (!error.transient || attempt === attempts - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 450 * (attempt + 1)));
+    }
+  }
+  throw lastError;
+}
+
+async function uploadToUguu(buffer, imageType, fileName) {
+  return retryTemporaryUpload(async () => {
+    const form = new FormData();
+    form.set('files[]', new Blob([buffer], { type: imageType }), fileName);
+    let response;
+    try {
+      response = await fetch(UGUU_UPLOAD_URL, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(20_000)
+      });
+    } catch {
+      throw temporaryUploadError('Uguu', 'no respondió', true);
+    }
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw temporaryUploadError('Uguu', `respondió HTTP ${response.status}`, response.status === 429 || response.status >= 500);
+    }
+
+    let payload;
+    try { payload = JSON.parse(responseText); }
+    catch { throw temporaryUploadError('Uguu', 'devolvió una respuesta inválida'); }
+    const uploadedUrl = String(payload?.files?.[0]?.url || '').trim();
+    if (!payload?.success || !isTrustedTemporaryUrl(uploadedUrl, 'uguu.se')) {
+      throw temporaryUploadError('Uguu', 'no devolvió una URL de imagen válida');
+    }
+    return { url: uploadedUrl, expiresIn: '3 horas', provider: 'Uguu' };
+  });
+}
+
+async function uploadToLitterbox(buffer, imageType, fileName) {
+  return retryTemporaryUpload(async () => {
+    const form = new FormData();
+    form.set('reqtype', 'fileupload');
+    form.set('time', '1h');
+    form.set('fileNameLength', '16');
+    form.set('fileToUpload', new Blob([buffer], { type: imageType }), fileName);
+    let response;
+    try {
+      response = await fetch(LITTERBOX_UPLOAD_URL, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(20_000)
+      });
+    } catch {
+      throw temporaryUploadError('Litterbox', 'no respondió', true);
+    }
+
+    const uploadedUrl = (await response.text()).trim();
+    if (!response.ok) {
+      throw temporaryUploadError('Litterbox', `respondió HTTP ${response.status}`, response.status === 429 || response.status >= 500);
+    }
+    if (!isTrustedTemporaryUrl(uploadedUrl, 'litter.catbox.moe')) {
+      throw temporaryUploadError('Litterbox', 'no devolvió una URL de imagen válida');
+    }
+    return { url: uploadedUrl, expiresIn: '1 hora', provider: 'Litterbox' };
+  });
+}
+
 async function uploadTemporaryImage(imageBase64, imageType, imageName) {
   const allowedTypes = new Map([
     ['image/jpeg', 'jpg'],
@@ -237,21 +328,15 @@ async function uploadTemporaryImage(imageBase64, imageType, imageName) {
     .replace(/[^a-z0-9._-]+/gi, '-')
     .slice(-100) || `imagen.${extension}`;
   const fileName = safeBaseName.includes('.') ? safeBaseName : `${safeBaseName}.${extension}`;
-  const form = new FormData();
-  form.set('reqtype', 'fileupload');
-  form.set('time', '1h');
-  form.set('fileToUpload', new Blob([buffer], { type: imageType }), fileName);
-
-  const response = await fetch(LITTERBOX_UPLOAD_URL, {
-    method: 'POST',
-    body: form,
-    signal: AbortSignal.timeout(30_000)
-  });
-  const uploadedUrl = (await response.text()).trim();
-  if (!response.ok || !/^https:\/\/litter\.catbox\.moe\/[a-z0-9._-]+$/i.test(uploadedUrl)) {
-    throw new Error(`No se pudo preparar la imagen temporal${uploadedUrl ? `: ${uploadedUrl.slice(0, 160)}` : '.'}`);
+  const providerErrors = [];
+  for (const upload of [uploadToUguu, uploadToLitterbox]) {
+    try {
+      return await upload(buffer, imageType, fileName);
+    } catch (error) {
+      providerErrors.push(error.message);
+    }
   }
-  return uploadedUrl;
+  throw new Error(`No se pudo alojar la imagen temporal. ${providerErrors.join(' · ')}`);
 }
 
 async function handleReverseImageSearch(req, res) {
@@ -264,8 +349,10 @@ async function handleReverseImageSearch(req, res) {
 
   let imageUrl = suppliedUrl;
   let temporary = false;
+  let temporaryUpload = null;
   if (hasUpload) {
-    imageUrl = await uploadTemporaryImage(body.imageBase64, body.imageType, body.imageName);
+    temporaryUpload = await uploadTemporaryImage(body.imageBase64, body.imageType, body.imageName);
+    imageUrl = temporaryUpload.url;
     temporary = true;
   } else if (!isSafePublicUrl(imageUrl)) {
     return sendJson(res, 400, { error: 'La URL de la imagen debe ser pública y usar HTTP o HTTPS.' });
@@ -275,7 +362,8 @@ async function handleReverseImageSearch(req, res) {
     ok: true,
     sourceUrl: imageUrl,
     temporary,
-    expiresIn: temporary ? '1 hora' : null,
+    expiresIn: temporaryUpload?.expiresIn || null,
+    temporaryProvider: temporaryUpload?.provider || null,
     engines: reverseImageSearchUrls(imageUrl)
   });
 }

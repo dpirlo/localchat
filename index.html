@@ -1899,7 +1899,8 @@
             ...result.engines.map(engine => `- [${engine.name}](${engine.url})`)
           ];
           if (result.temporary) {
-            lines.push('', 'La imagen adjunta se alojó temporalmente durante 1 hora para que los buscadores puedan verla.');
+            const provider = result.temporaryProvider ? ` mediante ${result.temporaryProvider}` : '';
+            lines.push('', `La imagen adjunta se alojó temporalmente${provider} durante ${result.expiresIn || 'unas horas'} para que los buscadores puedan verla.`);
           }
           if (blockedCount) {
             lines.push('', `El navegador bloqueó ${blockedCount} pestaña${blockedCount === 1 ? '' : 's'}. Habilitá las ventanas emergentes para http://127.0.0.1 y, mientras tanto, usá los enlaces de arriba.`);
