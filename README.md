@@ -22,7 +22,11 @@ El historial completo se guarda localmente en IndexedDB dentro del perfil de Chr
 
 Para no sobrecargar a Ollama, cada consulta envía únicamente el tramo reciente y los pares de mensajes anteriores más relacionados con la pregunta actual. Este recorte afecta sólo al contexto temporal del modelo, nunca al historial almacenado.
 
-Cada respuesta guarda y muestra su tiempo total de trabajo. Ese dato se conserva como metadato del historial y no se envía a Ollama como parte del contexto.
+El menú de conversaciones incluye una búsqueda global por palabras. Los resultados muestran el fragmento coincidente y abren la conversación directamente en el mensaje encontrado.
+
+Desde ese mismo menú se puede exportar todo el historial como JSON reimportable o como Markdown legible. La importación combina el archivo con el historial existente: agrega conversaciones nuevas y sólo reemplaza una coincidencia cuando la copia importada es más reciente.
+
+Cada respuesta guarda su tiempo total y, cuando Ollama informa los datos, ofrece un panel desplegable con modelo, CPU/GPU, tokens de entrada y salida, velocidad, contexto y memoria ocupada. Estas métricas se conservan como metadatos del historial y no se envían a Ollama como parte del contexto.
 
 Al abrir IA Local, el lanzador aplica la preferencia de GPU de alto rendimiento a Ollama, activa temporalmente el plan energético de alto rendimiento y asigna prioridad `AboveNormal` al proceso de inferencia. Al cerrar la ventana, restaura el plan energético que estaba activo antes de abrirla.
 

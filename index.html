@@ -131,19 +131,104 @@
     }
 
     .history-drawer.open { transform: translateX(0); }
-    .drawer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .drawer-header { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .drawer-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .drawer-header h2 { margin: 0; font-size: 1rem; }
     .drawer-close { width: 32px; height: 32px; border-radius: 9px; }
+
+    .history-settings-button {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .history-settings-button[aria-expanded="true"] {
+      border-color: #6559bd;
+      background: #282342;
+      color: #fff;
+    }
 
     .new-chat-button {
       width: 100%;
       min-height: 40px;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       border: 1px solid #51479b;
       border-radius: 10px;
       background: #302a60;
       cursor: pointer;
       font-weight: 650;
+    }
+
+    .history-search {
+      position: relative;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .history-search span {
+      position: absolute;
+      top: 50%;
+      left: 11px;
+      z-index: 1;
+      color: #777c88;
+      font-size: .9rem;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .history-search input {
+      width: 100%;
+      height: 38px;
+      padding: 0 11px 0 34px;
+      border-radius: 10px;
+      background: #191c22;
+      font-size: .8rem;
+    }
+
+    .history-search-status {
+      min-height: 18px;
+      margin: 0 3px 5px;
+      color: #777c88;
+      font-size: .68rem;
+    }
+
+    .history-tools {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      z-index: 2;
+      width: 178px;
+      display: none;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      padding: 7px;
+      border: 1px solid #343844;
+      border-radius: 10px;
+      background: #191c22;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .45);
+    }
+
+    .history-tools.open { display: grid; }
+
+    .history-tools button {
+      width: 100%;
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 8px;
+      color: #c7c9d1;
+      font-size: .75rem;
+      text-align: left;
+    }
+
+    .history-transfer-status {
+      min-height: 17px;
+      margin: 0 3px 5px;
+      color: #82f7bd;
+      font-size: .68rem;
     }
 
     .conversation-list { min-height: 0; overflow: auto; display: grid; align-content: start; gap: 7px; }
@@ -163,7 +248,18 @@
 
     .conversation-item:hover { border-color: #343842; }
     .conversation-item.active { border-color: #7567df; background: #211e3a; }
+    .conversation-item.search-result { grid-template-columns: minmax(0, 1fr); align-items: start; }
     .conversation-title { overflow: hidden; color: #e5e6eb; text-overflow: ellipsis; white-space: nowrap; font-size: .84rem; }
+    .conversation-snippet {
+      display: -webkit-box;
+      overflow: hidden;
+      margin-top: 4px;
+      color: #a8abb5;
+      font-size: .73rem;
+      line-height: 1.35;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
     .conversation-date { margin-top: 3px; color: #777c88; font-size: .68rem; }
     .delete-chat { width: 28px; height: 28px; border-radius: 8px; color: #a8abb5; }
 
@@ -295,6 +391,42 @@
       font-weight: 500;
       line-height: 1;
       white-space: nowrap;
+    }
+
+    .message.search-hit { animation: history-search-hit 2.4s ease-out; }
+
+    .performance-panel {
+      align-self: flex-start;
+      max-width: min(84%, 560px);
+      margin-top: -8px;
+      color: #777c88;
+      font-size: .68rem;
+    }
+
+    .performance-panel summary {
+      width: fit-content;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .performance-panel[open] summary { color: #a8abb5; }
+
+    .performance-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 5px 14px;
+      margin-top: 7px;
+      padding: 9px 11px;
+      border: 1px solid #2f333c;
+      border-radius: 9px;
+      background: #15181d;
+    }
+
+    .performance-value { color: #c7c9d1; }
+
+    @keyframes history-search-hit {
+      0%, 22% { outline: 3px solid #a99cff; box-shadow: 0 0 0 7px rgba(124, 110, 230, .18); }
+      100% { outline: 0 solid transparent; box-shadow: none; }
     }
 
     .message.error {
@@ -439,6 +571,8 @@
       textarea { height: 78px; }
       .actions { align-items: stretch; flex-direction: column; }
       .actions button { width: 100%; }
+      .performance-panel { max-width: 100%; }
+      .performance-grid { grid-template-columns: 1fr; }
     }
 
     @media (max-height: 760px) {
@@ -456,10 +590,25 @@
   <div id="drawerOverlay" class="drawer-overlay"></div>
   <aside id="historyDrawer" class="history-drawer" aria-label="Historial de conversaciones">
     <div class="drawer-header">
-      <h2>Conversaciones</h2>
+      <div class="drawer-title">
+        <button id="historySettingsButton" class="history-settings-button" type="button" aria-label="Opciones del historial" aria-controls="historyTools" aria-expanded="false" title="Opciones del historial">⚙</button>
+        <h2>Conversaciones</h2>
+      </div>
+      <div id="historyTools" class="history-tools" aria-label="Opciones del historial">
+        <button id="exportHistoryJson" type="button" title="Copia importable">Exportar JSON</button>
+        <button id="exportHistoryMarkdown" type="button" title="Documento legible">Exportar Markdown</button>
+        <button id="importHistory" type="button">Importar JSON</button>
+        <input id="importHistoryInput" type="file" accept="application/json,.json" hidden />
+      </div>
       <button id="closeDrawer" class="drawer-close" type="button" aria-label="Cerrar historial">✕</button>
     </div>
     <button id="newChat" class="new-chat-button" type="button">＋ Nuevo chat</button>
+    <label class="history-search">
+      <span aria-hidden="true">⌕</span>
+      <input id="historySearch" type="search" placeholder="Buscar en todo el historial…" autocomplete="off" />
+    </label>
+    <div id="historySearchStatus" class="history-search-status" aria-live="polite"></div>
+    <div id="historyTransferStatus" class="history-transfer-status" aria-live="polite"></div>
     <div id="conversationList" class="conversation-list"></div>
   </aside>
   <main>
@@ -530,6 +679,15 @@
     const drawerOverlay = document.querySelector('#drawerOverlay');
     const closeDrawerButton = document.querySelector('#closeDrawer');
     const newChatButton = document.querySelector('#newChat');
+    const historySearchInput = document.querySelector('#historySearch');
+    const historySearchStatus = document.querySelector('#historySearchStatus');
+    const historySettingsButton = document.querySelector('#historySettingsButton');
+    const historyTools = document.querySelector('#historyTools');
+    const exportHistoryJsonButton = document.querySelector('#exportHistoryJson');
+    const exportHistoryMarkdownButton = document.querySelector('#exportHistoryMarkdown');
+    const importHistoryButton = document.querySelector('#importHistory');
+    const importHistoryInput = document.querySelector('#importHistoryInput');
+    const historyTransferStatus = document.querySelector('#historyTransferStatus');
     const conversationList = document.querySelector('#conversationList');
     const deleteActiveButton = document.querySelector('#deleteActive');
     const appIconState = document.querySelector('#appIconState');
@@ -539,6 +697,7 @@
     let conversations = [];
     let activeConversationId = null;
     let completionToastTimer = null;
+    let pendingHistoryJump = null;
 
     const LEGACY_HISTORY_STORAGE_KEY = 'mini_chat_local_history_v1';
     const LEGACY_ACTIVE_CHAT_KEY = 'mini_chat_local_active_v1';
@@ -656,6 +815,79 @@
       bubble.dataset.duration = formatWorkDuration(durationMs);
     }
 
+    function normalizePerformanceData(value) {
+      if (!value || typeof value !== 'object') return null;
+      const number = input => Number.isFinite(Number(input)) && Number(input) >= 0 ? Number(input) : 0;
+      const normalized = {
+        model: String(value.model || '').slice(0, 120),
+        processor: String(value.processor || '').slice(0, 40),
+        promptTokens: number(value.promptTokens),
+        generatedTokens: number(value.generatedTokens),
+        tokensPerSecond: number(value.tokensPerSecond),
+        modelDurationMs: number(value.modelDurationMs),
+        contextLength: number(value.contextLength),
+        sizeBytes: number(value.sizeBytes),
+        vramBytes: number(value.vramBytes),
+        ramBytes: number(value.ramBytes)
+      };
+      return (Object.values(normalized).some(item => typeof item === 'number' && item > 0)
+        || normalized.model || normalized.processor)
+        ? normalized
+        : null;
+    }
+
+    function formatBytes(value) {
+      const bytes = Number(value) || 0;
+      if (bytes <= 0) return '—';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+      const amount = bytes / (1024 ** unitIndex);
+      return `${amount.toLocaleString('es-AR', { maximumFractionDigits: unitIndex >= 3 ? 1 : 0 })} ${units[unitIndex]}`;
+    }
+
+    function setMessagePerformance(bubble, value, durationMs) {
+      const performance = normalizePerformanceData(value);
+      if (!bubble || !performance) return;
+      bubble.removeAttribute('data-duration');
+      const details = document.createElement('details');
+      details.className = 'performance-panel';
+      const summary = document.createElement('summary');
+      const speed = performance.tokensPerSecond
+        ? ` · ${performance.tokensPerSecond.toLocaleString('es-AR', { maximumFractionDigits: 1 })} tok/s`
+        : '';
+      const durationLabel = Number.isFinite(Number(durationMs))
+        ? formatWorkDuration(Number(durationMs))
+        : 'Rendimiento';
+      summary.textContent = `${durationLabel}${speed}`;
+      const grid = document.createElement('div');
+      grid.className = 'performance-grid';
+      const memory = performance.vramBytes || performance.ramBytes
+        ? `VRAM ${formatBytes(performance.vramBytes)} · RAM ${formatBytes(performance.ramBytes)}`
+        : formatBytes(performance.sizeBytes);
+      const rows = [
+        ['Modelo', performance.model || '—'],
+        ['Procesador', performance.processor || '—'],
+        ['Tokens de entrada', performance.promptTokens.toLocaleString('es-AR')],
+        ['Tokens generados', performance.generatedTokens.toLocaleString('es-AR')],
+        ['Velocidad', performance.tokensPerSecond ? `${performance.tokensPerSecond.toLocaleString('es-AR', { maximumFractionDigits: 2 })} tok/s` : '—'],
+        ['Tiempo del modelo', performance.modelDurationMs ? formatWorkDuration(performance.modelDurationMs).replace('Trabajó durante ', '') : '—'],
+        ['Contexto', performance.contextLength ? `${performance.promptTokens.toLocaleString('es-AR')} / ${performance.contextLength.toLocaleString('es-AR')} tokens` : '—'],
+        ['Memoria del modelo', memory]
+      ];
+      for (const [label, content] of rows) {
+        const row = document.createElement('div');
+        const labelElement = document.createElement('div');
+        labelElement.textContent = label;
+        const valueElement = document.createElement('div');
+        valueElement.className = 'performance-value';
+        valueElement.textContent = content;
+        row.append(labelElement, valueElement);
+        grid.append(row);
+      }
+      details.append(summary, grid);
+      bubble.insertAdjacentElement('afterend', details);
+    }
+
     function plainTextForCopy(value) {
       return String(value || '')
         .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1 — $2')
@@ -724,9 +956,20 @@
       historyDrawer.classList.add('open');
       drawerOverlay.classList.add('open');
       renderConversationList();
+      requestAnimationFrame(() => historySearchInput.focus({ preventScroll: true }));
+    }
+
+    function setHistoryToolsOpen(open) {
+      historyTools.classList.toggle('open', open);
+      historySettingsButton.setAttribute('aria-expanded', String(open));
+    }
+
+    function toggleHistoryTools() {
+      setHistoryToolsOpen(!historyTools.classList.contains('open'));
     }
 
     function closeHistory() {
+      setHistoryToolsOpen(false);
       historyDrawer.classList.remove('open');
       drawerOverlay.classList.remove('open');
     }
@@ -825,6 +1068,139 @@
       return historyWriteQueue;
     }
 
+    function historyExportBaseName() {
+      const date = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date());
+      return `ia-local-historial-${date}`;
+    }
+
+    function downloadHistoryFile(fileName, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function showHistoryTransferStatus(message, error = false) {
+      historyTransferStatus.textContent = message;
+      historyTransferStatus.style.color = error ? '#fda4af' : '#82f7bd';
+    }
+
+    function exportHistoryJson() {
+      const payload = {
+        format: 'ia-local-history',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        activeConversationId,
+        conversations
+      };
+      downloadHistoryFile(
+        `${historyExportBaseName()}.json`,
+        JSON.stringify(payload, null, 2),
+        'application/json;charset=utf-8'
+      );
+      showHistoryTransferStatus(`Exportadas ${conversations.length} conversaciones en JSON.`);
+    }
+
+    function exportHistoryMarkdown() {
+      const lines = [
+        '# Historial de IA Local',
+        '',
+        `Exportado: ${new Date().toLocaleString('es-AR')}`,
+        ''
+      ];
+      for (const conversation of [...conversations].reverse()) {
+        lines.push(`## ${String(conversation.title || 'Conversación').replace(/\n+/g, ' ')}`, '');
+        lines.push(`_Última actualización: ${conversationDate(conversation)}_`, '');
+        for (const message of conversation.messages || []) {
+          lines.push(`### ${message.role === 'assistant' ? 'IA' : 'Yo'}`, '', String(message.content || ''), '');
+          if (Number.isFinite(message.durationMs)) lines.push(`_${formatWorkDuration(message.durationMs)}_`, '');
+          const messagePerformance = normalizePerformanceData(message.performance);
+          if (messagePerformance) {
+            const performanceSummary = [
+              messagePerformance.model && `Modelo: ${messagePerformance.model}`,
+              messagePerformance.processor && `Procesador: ${messagePerformance.processor}`,
+              messagePerformance.generatedTokens && `Salida: ${messagePerformance.generatedTokens} tokens`,
+              messagePerformance.tokensPerSecond && `Velocidad: ${messagePerformance.tokensPerSecond.toLocaleString('es-AR', { maximumFractionDigits: 2 })} tok/s`
+            ].filter(Boolean).join(' · ');
+            if (performanceSummary) lines.push(`_${performanceSummary}_`, '');
+          }
+        }
+        lines.push('---', '');
+      }
+      downloadHistoryFile(
+        `${historyExportBaseName()}.md`,
+        lines.join('\n'),
+        'text/markdown;charset=utf-8'
+      );
+      showHistoryTransferStatus(`Exportadas ${conversations.length} conversaciones en Markdown.`);
+    }
+
+    function sanitizeImportedConversation(value, index) {
+      if (!value || typeof value !== 'object' || !Array.isArray(value.messages)) return null;
+      const messages = value.messages.map(message => {
+        if (!message || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string') return null;
+        const messagePerformance = normalizePerformanceData(message.performance);
+        return {
+          role: message.role,
+          content: message.content,
+          ...(Number.isFinite(Number(message.durationMs)) && Number(message.durationMs) >= 0
+            ? { durationMs: Number(message.durationMs) }
+            : {}),
+          ...(messagePerformance ? { performance: messagePerformance } : {})
+        };
+      }).filter(Boolean);
+      if (!messages.length) return null;
+      const now = Date.now();
+      const firstUser = messages.find(message => message.role === 'user');
+      const fallbackTitle = String(firstUser?.content || 'Conversación importada').replace(/\s+/g, ' ').trim();
+      return {
+        id: String(value.id || `import-${now}-${index}-${Math.random().toString(36).slice(2, 8)}`),
+        title: String(value.title || fallbackTitle || 'Conversación importada').slice(0, 200),
+        createdAt: Number.isFinite(Number(value.createdAt)) ? Number(value.createdAt) : now,
+        updatedAt: Number.isFinite(Number(value.updatedAt)) ? Number(value.updatedAt) : now,
+        messages
+      };
+    }
+
+    async function importHistoryFile(file) {
+      try {
+        const parsed = JSON.parse(await file.text());
+        const source = Array.isArray(parsed) ? parsed : parsed?.conversations;
+        if (!Array.isArray(source)) throw new Error('El archivo no contiene un historial compatible.');
+        const imported = source.map(sanitizeImportedConversation).filter(Boolean);
+        if (!imported.length) throw new Error('No encontré conversaciones válidas para importar.');
+
+        const merged = new Map(conversations.map(conversation => [conversation.id, conversation]));
+        let added = 0;
+        let updated = 0;
+        for (const conversation of imported) {
+          const existing = merged.get(conversation.id);
+          if (!existing) {
+            merged.set(conversation.id, conversation);
+            added++;
+          } else if (conversation.updatedAt > Number(existing.updatedAt || 0)) {
+            merged.set(conversation.id, conversation);
+            updated++;
+          }
+        }
+        conversations = [...merged.values()].sort((left, right) => Number(right.updatedAt || 0) - Number(left.updatedAt || 0));
+        await writeStoredConversations();
+        renderConversationList();
+        showHistoryTransferStatus(`Importación lista: ${added} nuevas y ${updated} actualizadas.`);
+      } catch (error) {
+        showHistoryTransferStatus(`No se pudo importar: ${error.message}`, true);
+      } finally {
+        importHistoryInput.value = '';
+      }
+    }
+
     function conversationTitle() {
       const firstUser = history.find(message => message.role === 'user');
       const normalized = String(firstUser?.content || 'Nueva conversación').replace(/\s+/g, ' ').trim();
@@ -834,13 +1210,17 @@
     function saveCurrentConversation() {
       if (!history.some(message => message.role === 'user')) return;
       if (!activeConversationId) activeConversationId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const savedMessages = history.map(message => ({
-        role: message.role,
-        content: String(message.content || ''),
-        ...(Number.isFinite(message.durationMs) && message.durationMs >= 0
-          ? { durationMs: Math.round(message.durationMs) }
-          : {})
-      })).filter(message => ['user', 'assistant'].includes(message.role) && message.content);
+      const savedMessages = history.map(message => {
+        const messagePerformance = normalizePerformanceData(message.performance);
+        return {
+          role: message.role,
+          content: String(message.content || ''),
+          ...(Number.isFinite(message.durationMs) && message.durationMs >= 0
+            ? { durationMs: Math.round(message.durationMs) }
+            : {}),
+          ...(messagePerformance ? { performance: messagePerformance } : {})
+        };
+      }).filter(message => ['user', 'assistant'].includes(message.role) && message.content);
       const existing = conversations.find(item => item.id === activeConversationId);
       const conversation = {
         id: activeConversationId,
@@ -951,24 +1331,40 @@
         messagesBox.append(welcome);
         return;
       }
-      for (const message of history) {
+      for (const [messageIndex, message] of history.entries()) {
         const bubble = addMessage(message.role, message.content);
+        bubble.dataset.historyIndex = String(messageIndex);
         if (message.role === 'assistant') {
           bubble.innerHTML = renderMarkdown(message.content);
           setMessageDuration(bubble, message.durationMs);
+          setMessagePerformance(bubble, message.performance, message.durationMs);
         }
       }
-      messagesBox.scrollTop = messagesBox.scrollHeight;
+      if (pendingHistoryJump && Number.isInteger(pendingHistoryJump.messageIndex)) {
+        const target = messagesBox.querySelector(`[data-history-index="${pendingHistoryJump.messageIndex}"]`);
+        pendingHistoryJump = null;
+        if (target) {
+          requestAnimationFrame(() => {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            target.classList.add('search-hit');
+            setTimeout(() => target.classList.remove('search-hit'), 2500);
+          });
+        }
+      } else {
+        messagesBox.scrollTop = messagesBox.scrollHeight;
+      }
     }
 
-    function loadConversation(id) {
+    function loadConversation(id, messageIndex = null) {
       const conversation = conversations.find(item => item.id === id);
       if (!conversation || controller) return;
       activeConversationId = conversation.id;
+      pendingHistoryJump = Number.isInteger(messageIndex) ? { messageIndex } : null;
       history = conversation.messages.map(message => ({
         role: message.role,
         content: message.content,
-        ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {})
+        ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {}),
+        ...(normalizePerformanceData(message.performance) ? { performance: normalizePerformanceData(message.performance) } : {})
       }));
       writeStoredConversations();
       renderActiveConversation();
@@ -980,6 +1376,7 @@
     function startNewConversation() {
       if (controller) return;
       activeConversationId = null;
+      pendingHistoryJump = null;
       history = [];
       writeStoredConversations();
       renderActiveConversation();
@@ -1006,8 +1403,102 @@
       deleteActiveButton.disabled = !activeConversationId;
     }
 
+    function normalizeHistorySearch(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleLowerCase('es')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function historySearchTerms(value) {
+      return normalizeHistorySearch(value).split(' ').filter(Boolean);
+    }
+
+    function matchesHistorySearch(value, terms) {
+      const normalized = normalizeHistorySearch(value);
+      return terms.length > 0 && terms.every(term => normalized.includes(term));
+    }
+
+    function historySearchSnippet(value, terms) {
+      const compact = String(value || '').replace(/\s+/g, ' ').trim();
+      if (!compact) return '';
+      const normalized = normalizeHistorySearch(compact);
+      const indexes = terms.map(term => normalized.indexOf(term)).filter(index => index >= 0);
+      const firstMatch = indexes.length ? Math.min(...indexes) : 0;
+      const start = Math.max(0, firstMatch - 48);
+      const end = Math.min(compact.length, start + 150);
+      return `${start ? '…' : ''}${compact.slice(start, end)}${end < compact.length ? '…' : ''}`;
+    }
+
+    function globalHistoryResults(query) {
+      const terms = historySearchTerms(query);
+      if (!terms.length) return [];
+      const results = [];
+      for (const conversation of conversations) {
+        let foundMessage = false;
+        for (const [messageIndex, message] of conversation.messages.entries()) {
+          if (!matchesHistorySearch(message.content, terms)) continue;
+          foundMessage = true;
+          results.push({ conversation, message, messageIndex, snippet: historySearchSnippet(message.content, terms) });
+        }
+        if (!foundMessage && matchesHistorySearch(conversation.title, terms)) {
+          results.push({
+            conversation,
+            message: conversation.messages[0] || { role: 'user', content: conversation.title },
+            messageIndex: conversation.messages.length ? 0 : null,
+            snippet: conversation.title
+          });
+        }
+      }
+      return results;
+    }
+
+    function conversationDate(conversation) {
+      return new Date(conversation.updatedAt).toLocaleString('es-AR', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      });
+    }
+
     function renderConversationList() {
       conversationList.innerHTML = '';
+      const searchQuery = historySearchInput.value.trim();
+      if (searchQuery) {
+        const results = globalHistoryResults(searchQuery);
+        historySearchStatus.textContent = `${results.length} resultado${results.length === 1 ? '' : 's'}`;
+        if (!results.length) {
+          const empty = document.createElement('div');
+          empty.className = 'conversation-empty';
+          empty.textContent = 'No encontré mensajes con esas palabras.';
+          conversationList.append(empty);
+          return;
+        }
+
+        for (const result of results) {
+          const item = document.createElement('div');
+          item.className = `conversation-item search-result${result.conversation.id === activeConversationId ? ' active' : ''}`;
+          item.addEventListener('click', () => loadConversation(result.conversation.id, result.messageIndex));
+          const text = document.createElement('div');
+          const title = document.createElement('div');
+          title.className = 'conversation-title';
+          title.textContent = result.conversation.title;
+          const snippet = document.createElement('div');
+          snippet.className = 'conversation-snippet';
+          snippet.textContent = result.snippet;
+          const date = document.createElement('div');
+          date.className = 'conversation-date';
+          const author = result.message.role === 'assistant' ? 'IA' : 'Vos';
+          date.textContent = `${author} · ${conversationDate(result.conversation)}`;
+          text.append(title, snippet, date);
+          item.append(text);
+          conversationList.append(item);
+        }
+        return;
+      }
+
+      historySearchStatus.textContent = '';
       if (!conversations.length) {
         const empty = document.createElement('div');
         empty.className = 'conversation-empty';
@@ -1025,9 +1516,7 @@
         title.textContent = conversation.title;
         const date = document.createElement('div');
         date.className = 'conversation-date';
-        date.textContent = new Date(conversation.updatedAt).toLocaleString('es-AR', {
-          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-        });
+        date.textContent = conversationDate(conversation);
         text.append(title, date);
         const remove = document.createElement('button');
         remove.type = 'button';
@@ -1049,7 +1538,8 @@
         history = conversation.messages.map(message => ({
           role: message.role,
           content: message.content,
-          ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {})
+          ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {}),
+          ...(normalizePerformanceData(message.performance) ? { performance: normalizePerformanceData(message.performance) } : {})
         }));
       }
       else activeConversationId = null;
@@ -1262,6 +1752,56 @@
       }
     }
 
+    function runtimeFromOllamaPayload(payload, model) {
+      const models = Array.isArray(payload?.models) ? payload.models : [];
+      const requested = String(model || '').toLocaleLowerCase();
+      const loaded = models.find(item => String(item.name || item.model || '').toLocaleLowerCase() === requested) || models[0];
+      if (!loaded) return { loaded: false };
+      const sizeBytes = Math.max(0, Number(loaded.size || 0));
+      const vramBytes = Math.max(0, Number(loaded.size_vram || 0));
+      return {
+        loaded: true,
+        model: loaded.name || loaded.model || model,
+        processor: vramBytes <= 0 ? 'CPU' : (sizeBytes > 0 && vramBytes >= sizeBytes * .95 ? 'GPU' : 'CPU + GPU'),
+        sizeBytes,
+        vramBytes,
+        ramBytes: Math.max(0, sizeBytes - vramBytes),
+        contextLength: Number(loaded.context_length || 0)
+      };
+    }
+
+    async function loadRuntimeInfo(model) {
+      try {
+        const runtimeUrl = usingNodeBridge
+          ? `/api/runtime?model=${encodeURIComponent(model)}&ollamaUrl=${encodeURIComponent(baseUrl())}`
+          : `${baseUrl()}/api/ps`;
+        const response = await fetch(runtimeUrl, { cache: 'no-store' });
+        if (!response.ok) return null;
+        const payload = await response.json();
+        return usingNodeBridge ? payload : runtimeFromOllamaPayload(payload, model);
+      } catch {
+        return null;
+      }
+    }
+
+    function performanceFromResponse(chunk, runtime, model) {
+      if (!chunk && !runtime?.loaded) return null;
+      const generatedTokens = Math.max(0, Number(chunk?.eval_count || 0));
+      const evaluationSeconds = Math.max(0, Number(chunk?.eval_duration || 0)) / 1e9;
+      return normalizePerformanceData({
+        model: runtime?.model || model,
+        processor: runtime?.processor || '',
+        promptTokens: Number(chunk?.prompt_eval_count || 0),
+        generatedTokens,
+        tokensPerSecond: evaluationSeconds > 0 ? generatedTokens / evaluationSeconds : 0,
+        modelDurationMs: Math.max(0, Number(chunk?.total_duration || 0)) / 1e6,
+        contextLength: runtime?.contextLength || 8192,
+        sizeBytes: runtime?.sizeBytes || 0,
+        vramBytes: runtime?.vramBytes || 0,
+        ramBytes: runtime?.ramBytes || 0
+      });
+    }
+
     async function sendPrompt() {
       const attachedFile = imageInput.files?.[0] || null;
       const isPdf = Boolean(attachedFile && (attachedFile.type === 'application/pdf' || /\.pdf$/i.test(attachedFile.name)));
@@ -1445,6 +1985,7 @@
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let pending = '';
+        let finalOllamaChunk = null;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -1457,6 +1998,7 @@
             if (!line.trim()) continue;
             const chunk = JSON.parse(line);
             if (chunk.error) throw new Error(chunk.error);
+            if (chunk.done) finalOllamaChunk = chunk;
             assistantText += chunk.message?.content || '';
             assistantBubble.textContent = assistantText;
             assistantBubble.dataset.copyText = assistantText;
@@ -1466,14 +2008,24 @@
 
         if (pending.trim()) {
           const chunk = JSON.parse(pending);
+          if (chunk.error) throw new Error(chunk.error);
+          if (chunk.done) finalOllamaChunk = chunk;
           assistantText += chunk.message?.content || '';
         }
 
         assistantBubble.dataset.copyText = assistantText;
         assistantBubble.innerHTML = renderMarkdown(assistantText);
         const durationMs = Math.round(performance.now() - workStartedAt);
+        const runtime = await loadRuntimeInfo(model);
+        const responsePerformance = performanceFromResponse(finalOllamaChunk, runtime, model);
         setMessageDuration(assistantBubble, durationMs);
-        history.push({ role: 'assistant', content: assistantText, durationMs });
+        setMessagePerformance(assistantBubble, responsePerformance, durationMs);
+        history.push({
+          role: 'assistant',
+          content: assistantText,
+          durationMs,
+          ...(responsePerformance ? { performance: responsePerformance } : {})
+        });
         saveCurrentConversation();
         setStatus('Ollama conectado', 'ok');
         if (assistantText.trim()) void notifyAnswerReady();
@@ -1510,11 +2062,36 @@
     closeDrawerButton.addEventListener('click', closeHistory);
     drawerOverlay.addEventListener('click', closeHistory);
     newChatButton.addEventListener('click', startNewConversation);
+    historySearchInput.addEventListener('input', renderConversationList);
+    historySettingsButton.addEventListener('click', event => {
+      event.stopPropagation();
+      toggleHistoryTools();
+    });
+    historyTools.addEventListener('click', event => event.stopPropagation());
+    document.addEventListener('click', () => setHistoryToolsOpen(false));
+    exportHistoryJsonButton.addEventListener('click', () => {
+      exportHistoryJson();
+      setHistoryToolsOpen(false);
+    });
+    exportHistoryMarkdownButton.addEventListener('click', () => {
+      exportHistoryMarkdown();
+      setHistoryToolsOpen(false);
+    });
+    importHistoryButton.addEventListener('click', () => {
+      setHistoryToolsOpen(false);
+      importHistoryInput.click();
+    });
+    importHistoryInput.addEventListener('change', () => {
+      const file = importHistoryInput.files?.[0];
+      if (file) void importHistoryFile(file);
+    });
     deleteActiveButton.addEventListener('click', () => {
       if (activeConversationId) deleteConversation(activeConversationId);
     });
     addEventListener('keydown', event => {
-      if (event.key === 'Escape') closeHistory();
+      if (event.key !== 'Escape') return;
+      if (historyTools.classList.contains('open')) setHistoryToolsOpen(false);
+      else closeHistory();
     });
 
     async function initializeApp() {

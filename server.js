@@ -9,7 +9,7 @@ const HOST = '127.0.0.1';
 const PORT = Number(process.argv[2] || 8765);
 const HTML_PATH = path.join(__dirname, 'index.html');
 const LOCAL_CONFIG_PATH = path.join(__dirname, 'config.local.json');
-const APP_VERSION = '2026.11.10.1';
+const APP_VERSION = '2026.11.18.1';
 const LITTERBOX_UPLOAD_URL = 'https://litterbox.catbox.moe/resources/internals/api.php';
 const MAX_PDF_BYTES = 12 * 1024 * 1024;
 const MAX_PDF_TEXT_CHARS = 12_000;
@@ -382,6 +382,38 @@ async function handleModels(res) {
   res.end(text);
 }
 
+async function handleRuntime(url, res) {
+  const ollamaUrl = normalizeOllamaUrl(url.searchParams.get('ollamaUrl'));
+  const response = await fetch(`${ollamaUrl}/api/ps`);
+  if (!response.ok) {
+    const details = await response.text();
+    return sendJson(res, response.status, { error: details || 'No se pudo consultar el uso del modelo.' });
+  }
+
+  const payload = await response.json();
+  const requestedModel = String(url.searchParams.get('model') || '').toLocaleLowerCase();
+  const loadedModels = Array.isArray(payload.models) ? payload.models : [];
+  const loaded = loadedModels.find(item => String(item.name || item.model || '').toLocaleLowerCase() === requestedModel)
+    || loadedModels[0];
+  if (!loaded) return sendJson(res, 200, { loaded: false });
+
+  const sizeBytes = Math.max(0, Number(loaded.size || 0));
+  const vramBytes = Math.max(0, Number(loaded.size_vram || 0));
+  const ramBytes = Math.max(0, sizeBytes - vramBytes);
+  const processor = vramBytes <= 0
+    ? 'CPU'
+    : (sizeBytes > 0 && vramBytes >= sizeBytes * .95 ? 'GPU' : 'CPU + GPU');
+  sendJson(res, 200, {
+    loaded: true,
+    model: loaded.name || loaded.model || url.searchParams.get('model') || '',
+    processor,
+    sizeBytes,
+    vramBytes,
+    ramBytes,
+    contextLength: Number(loaded.context_length || 0)
+  });
+}
+
 function shouldReuseConversationWithoutSearch(messages) {
   const conversationalMessages = messages.filter(message => ['user', 'assistant'].includes(message.role));
   const userMessages = conversationalMessages.filter(message => message.role === 'user');
@@ -525,6 +557,7 @@ const server = http.createServer(async (req, res) => {
       return await handlePdfText(req, res);
     }
     if (req.method === 'GET' && url.pathname === '/api/models') return await handleModels(res);
+    if (req.method === 'GET' && url.pathname === '/api/runtime') return await handleRuntime(url, res);
     if (req.method === 'POST' && url.pathname === '/api/chat') return await handleChat(req, res);
     sendJson(res, 404, { error: 'Ruta no encontrada.' });
   } catch (error) {
