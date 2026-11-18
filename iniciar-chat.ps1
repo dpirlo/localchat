@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $appUrl = 'http://127.0.0.1:8765'
 $serverPath = Join-Path $PSScriptRoot 'server.js'
+$localNodePath = Join-Path $PSScriptRoot '.runtime\node\node.exe'
 $ollamaStartedByLauncher = $false
 $ollamaProcess = $null
 $nodeProcess = $null
@@ -114,14 +115,21 @@ if (-not (Test-OllamaServer)) {
     Write-Host 'Ollama iniciado correctamente.' -ForegroundColor Green
 }
 
-if (-not (Get-Command node.exe -ErrorAction SilentlyContinue)) {
+$nodeExecutable = if (Test-Path -LiteralPath $localNodePath) {
+    $localNodePath
+}
+else {
+    (Get-Command node.exe -ErrorAction SilentlyContinue).Source
+}
+
+if (-not $nodeExecutable) {
     Write-Host 'No encontré Node.js en el PATH.' -ForegroundColor Red
-    Write-Host 'Instalalo y volvé a ejecutar iniciar-chat.bat.'
+    Write-Host 'Ejecutá instalar-windows.bat y volvé a abrir IA Local.'
     exit 1
 }
 
 Stop-StaleChatServer
-$nodeProcess = Start-Process node.exe -ArgumentList @($serverPath) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru
+$nodeProcess = Start-Process $nodeExecutable -ArgumentList @($serverPath) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru
 
 $ready = $false
 for ($attempt = 0; $attempt -lt 30; $attempt++) {

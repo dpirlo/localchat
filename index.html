@@ -138,7 +138,10 @@
 
     .history-settings-button {
       width: 32px;
+      min-width: 32px;
+      max-width: 32px;
       height: 32px;
+      flex: 0 0 32px;
       padding: 0;
       border-radius: 9px;
       color: #fff;
@@ -285,7 +288,7 @@
     .settings {
       flex: 0 0 auto;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(210px, .72fr);
       gap: 12px;
       padding: 12px 20px;
       border-bottom: 1px solid #2a2d35;
@@ -310,6 +313,7 @@
     .model-hint { min-height: 1em; color: #8f94a1; font-size: .72rem; }
     .model-hint.recommended { color: #86efac; }
     .model-hint.visual { color: #93c5fd; }
+    .depth-hint { min-height: 1em; color: #8f94a1; font-size: .72rem; }
 
     input, select, textarea, button {
       font: inherit;
@@ -424,6 +428,80 @@
 
     .performance-value { color: #c7c9d1; }
 
+    .sources-panel {
+      align-self: flex-start;
+      width: min(84%, 760px);
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #2f333c;
+      border-radius: 11px;
+      background: #12151a;
+    }
+    .sources-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      color: #c7c9d1;
+      font-size: .76rem;
+      font-weight: 650;
+    }
+    .sources-retry {
+      width: auto;
+      min-width: 0;
+      height: 28px;
+      padding: 0 9px;
+      border: 1px solid #3a3e49;
+      border-radius: 7px;
+      background: #1a1d23;
+      color: #c8cad1;
+      font-size: .7rem;
+      font-weight: 550;
+    }
+    .sources-retry:hover { border-color: #7567df; background: #232630; }
+    .sources-list {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 1px 1px 7px;
+      scroll-snap-type: x proximity;
+    }
+    .source-card {
+      flex: 0 0 min(285px, 86%);
+      min-width: 0;
+      padding: 10px;
+      border: 1px solid #30343d;
+      border-radius: 9px;
+      background: #191c22;
+      scroll-snap-align: start;
+    }
+    .source-title {
+      display: block;
+      overflow: hidden;
+      color: #b9b0ff;
+      font-size: .78rem;
+      font-weight: 650;
+      line-height: 1.35;
+      text-decoration: none;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .source-title:hover { color: #d3ceff; text-decoration: underline; }
+    .source-domain { margin-top: 3px; color: #777c88; font-size: .66rem; }
+    .source-support-label { margin-top: 8px; color: #9ca0aa; font-size: .65rem; text-transform: uppercase; }
+    .source-phrase, .source-snippet {
+      display: -webkit-box;
+      overflow: hidden;
+      margin-top: 4px;
+      color: #d4d6dc;
+      font-size: .72rem;
+      line-height: 1.4;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+    .source-snippet { color: #9ca0aa; }
+
     @keyframes history-search-hit {
       0%, 22% { outline: 3px solid #a99cff; box-shadow: 0 0 0 7px rgba(124, 110, 230, .18); }
       100% { outline: 0 solid transparent; box-shadow: none; }
@@ -485,6 +563,44 @@
     }
 
     .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .send-buttons { display: flex; align-items: center; gap: 8px; }
+    .stop-button {
+      min-width: 0;
+      border: 1px solid rgba(251, 113, 133, .38);
+      background: rgba(127, 29, 29, .35);
+      color: #fecdd3;
+    }
+    .stop-button:hover { background: rgba(159, 18, 57, .5); }
+
+    .message-actions {
+      align-self: flex-start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-width: min(86%, 760px);
+      margin: -4px 0 3px;
+    }
+    .message-actions button {
+      width: auto;
+      min-width: 0;
+      height: 28px;
+      padding: 0 8px;
+      border: 1px solid #30343d;
+      border-radius: 7px;
+      background: #14171c;
+      color: #aeb2bd;
+      font-size: .72rem;
+      font-weight: 500;
+    }
+    .message-actions button:hover { border-color: #7567df; background: #1b1e25; color: #fff; }
+    .message-action-status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 0 4px;
+      color: #fda4af;
+      font-size: .72rem;
+    }
     .hint { color: #777c88; font-size: .78rem; }
 
     .attachment {
@@ -570,7 +686,10 @@
       .chat { padding: 10px 12px; }
       textarea { height: 78px; }
       .actions { align-items: stretch; flex-direction: column; }
-      .actions button { width: 100%; }
+      .send-buttons { width: 100%; }
+      .send-buttons button { flex: 1 1 0; width: auto; }
+      .message-actions { max-width: 100%; }
+      .sources-panel { width: 100%; }
       .performance-panel { max-width: 100%; }
       .performance-grid { grid-template-columns: 1fr; }
     }
@@ -633,6 +752,15 @@
         <select id="model" aria-label="Modelo de Ollama"></select>
         <span id="modelHint" class="model-hint"></span>
       </label>
+      <label>
+        Profundidad
+        <select id="depth" aria-label="Profundidad de respuesta">
+          <option value="fast">⚡ Rápido — directo</option>
+          <option value="normal" selected>● Normal — equilibrado</option>
+          <option value="think">🧠 Pensar — más contexto</option>
+        </select>
+        <span id="depthHint" class="depth-hint"></span>
+      </label>
       <label class="web-option">
         <input id="useWeb" type="checkbox" />
         <span id="webLabel">Internet apagado</span>
@@ -651,7 +779,10 @@
       <textarea id="prompt" placeholder="Escribí tu mensaje…" autofocus></textarea>
       <div class="actions">
         <span class="hint">Enter para enviar · Shift + Enter para nueva línea</span>
-        <button id="send" type="button">Enviar</button>
+        <div class="send-buttons">
+          <button id="stop" class="stop-button" type="button" hidden>■ Detener</button>
+          <button id="send" type="button">Enviar</button>
+        </div>
       </div>
     </section>
 
@@ -663,6 +794,8 @@
     const baseUrlInput = document.querySelector('#baseUrl');
     const modelInput = document.querySelector('#model');
     const modelHint = document.querySelector('#modelHint');
+    const depthInput = document.querySelector('#depth');
+    const depthHint = document.querySelector('#depthHint');
     const useWebInput = document.querySelector('#useWeb');
     const webLabel = document.querySelector('#webLabel');
     const promptInput = document.querySelector('#prompt');
@@ -670,6 +803,7 @@
     const imageInput = document.querySelector('#imageInput');
     const attachedName = document.querySelector('#attachedName');
     const sendButton = document.querySelector('#send');
+    const stopButton = document.querySelector('#stop');
     const statusText = document.querySelector('#status');
     const dot = document.querySelector('#dot');
     const errorBox = document.querySelector('#errorBox');
@@ -693,11 +827,13 @@
     const appIconState = document.querySelector('#appIconState');
     const appFavicon = document.querySelector('#appFavicon');
     let controller = null;
+    let stopRequested = false;
     let history = [];
     let conversations = [];
     let activeConversationId = null;
     let completionToastTimer = null;
     let pendingHistoryJump = null;
+    let pendingWebSearchRetry = null;
 
     const LEGACY_HISTORY_STORAGE_KEY = 'mini_chat_local_history_v1';
     const LEGACY_ACTIVE_CHAT_KEY = 'mini_chat_local_active_v1';
@@ -705,10 +841,39 @@
     const HISTORY_DB_VERSION = 1;
     const HISTORY_STORE_NAME = 'app_state';
     const HISTORY_STATE_KEY = 'chat_history';
-    const MAX_CONTEXT_MESSAGES = 12;
-    const MAX_CONTEXT_CHARS = 12000;
-    const MAX_CONTEXT_MESSAGE_CHARS = 2500;
-    const RECENT_CONTEXT_MESSAGES = 4;
+    const DEPTH_STORAGE_KEY = 'ia_local_depth_v1';
+    const DEPTH_PROFILES = Object.freeze({
+      fast: {
+        maxContextMessages: 4,
+        maxContextChars: 4000,
+        maxContextMessageChars: 1400,
+        recentContextMessages: 2,
+        numCtx: 4096,
+        numPredict: 512,
+        hint: 'Respuesta breve · poco historial',
+        instruction: 'Modo Rápido: respondé de forma directa y breve. Priorizá la conclusión y evitá desarrollar detalles no pedidos.'
+      },
+      normal: {
+        maxContextMessages: 12,
+        maxContextChars: 12000,
+        maxContextMessageChars: 2500,
+        recentContextMessages: 4,
+        numCtx: 8192,
+        numPredict: 2048,
+        hint: 'Equilibrio entre velocidad y contexto',
+        instruction: 'Modo Normal: equilibrá concisión, contexto y detalle según la consulta.'
+      },
+      think: {
+        maxContextMessages: 24,
+        maxContextChars: 28000,
+        maxContextMessageChars: 4000,
+        recentContextMessages: 8,
+        numCtx: 16384,
+        numPredict: 4096,
+        hint: 'Más historial · respuesta más elaborada',
+        instruction: 'Modo Pensar: analizá la consulta con más cuidado, usá el contexto relevante disponible y revisá la coherencia de la respuesta antes de concluir.'
+      }
+    });
     const CONTEXT_STOP_WORDS = new Set([
       'como', 'con', 'del', 'desde', 'donde', 'este', 'esta', 'estos', 'estas', 'eso', 'esa',
       'para', 'pero', 'por', 'porque', 'que', 'una', 'uno', 'unos', 'unas', 'the', 'and', 'for',
@@ -896,6 +1061,276 @@
         .replace(/__([^_]+)__/g, '$1')
         .replace(/`([^`]+)`/g, '$1')
         .trim();
+    }
+
+    async function copyPlainText(value) {
+      const text = plainTextForCopy(value);
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return;
+        } catch {}
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.append(textarea);
+      textarea.select();
+      try {
+        if (!document.execCommand('copy')) throw new Error('El navegador rechazó la copia.');
+      } finally {
+        textarea.remove();
+      }
+    }
+
+    function findExchangeUserIndex(assistantIndex) {
+      for (let index = assistantIndex - 1; index >= 0; index--) {
+        if (history[index]?.role === 'user') return index;
+      }
+      return -1;
+    }
+
+    function persistHistoryMutation() {
+      if (history.some(message => message.role === 'user')) {
+        saveCurrentConversation();
+      } else if (activeConversationId) {
+        conversations = conversations.filter(item => item.id !== activeConversationId);
+        activeConversationId = null;
+        writeStoredConversations();
+        renderConversationList();
+        deleteActiveButton.disabled = true;
+      }
+      renderActiveConversation();
+    }
+
+    function confirmHistoryTruncation(assistantIndex, action) {
+      if (assistantIndex >= history.length - 1) return true;
+      return confirm(`${action} va a quitar los mensajes posteriores de esta conversación. ¿Continuar?`);
+    }
+
+    function showAttachmentReminder(message) {
+      errorBox.textContent = message;
+      errorBox.style.display = 'block';
+    }
+
+    function sanitizeWebSources(value) {
+      if (!Array.isArray(value)) return [];
+      return value.slice(0, 8).map((source, index) => {
+        try {
+          const url = new URL(String(source?.url || ''));
+          if (!['http:', 'https:'].includes(url.protocol)) return null;
+          return {
+            id: Number.isInteger(Number(source.id)) ? Number(source.id) : index + 1,
+            title: String(source.title || url.hostname).replace(/\s+/g, ' ').trim().slice(0, 240),
+            url: url.href,
+            snippet: String(source.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 700)
+          };
+        } catch {
+          return null;
+        }
+      }).filter(Boolean);
+    }
+
+    function sourceDomains(sources) {
+      return [...new Set(sanitizeWebSources(sources).map(source => {
+        try { return new URL(source.url).hostname.replace(/^www\./i, ''); }
+        catch { return ''; }
+      }).filter(Boolean))];
+    }
+
+    function sourcePhrases(answer, sourceId) {
+      const marker = new RegExp(`\\[(?:\\d+\\s*,\\s*)*${sourceId}(?:\\s*,\\s*\\d+)*\\]`);
+      return String(answer || '')
+        .replace(/```[\s\S]*?```/g, ' ')
+        .split(/(?<=[.!?])\s+|\n+/)
+        .filter(part => marker.test(part))
+        .map(part => plainTextForCopy(part.replace(/\[(?:\d+\s*,\s*)*\d+\]/g, '')).replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+
+    function messageAccessoryAnchor(bubble) {
+      let anchor = bubble;
+      while (anchor.nextElementSibling
+        && ['performance-panel', 'sources-panel'].some(className => anchor.nextElementSibling.classList.contains(className))) {
+        anchor = anchor.nextElementSibling;
+      }
+      return anchor;
+    }
+
+    function setMessageSources(bubble, sources, answer, assistantIndex) {
+      const safeSources = sanitizeWebSources(sources);
+      if (!bubble || !safeSources.length) return;
+      const panel = document.createElement('section');
+      panel.className = 'sources-panel';
+      panel.dataset.historyIndex = String(assistantIndex);
+
+      const header = document.createElement('div');
+      header.className = 'sources-header';
+      const title = document.createElement('span');
+      title.textContent = `Fuentes consultadas · ${safeSources.length}`;
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'sources-retry';
+      retry.textContent = '↻ Buscar otras fuentes';
+      retry.title = 'Repetir la búsqueda excluyendo estos sitios';
+      retry.addEventListener('click', () => regenerateResponse(assistantIndex, {
+        forceWebSearch: true,
+        excludeDomains: sourceDomains(safeSources)
+      }));
+      header.append(title, retry);
+
+      const list = document.createElement('div');
+      list.className = 'sources-list';
+      for (const source of safeSources) {
+        const card = document.createElement('article');
+        card.className = 'source-card';
+        const link = document.createElement('a');
+        link.className = 'source-title';
+        link.href = source.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = `[${source.id}] ${source.title} ↗`;
+        const domain = document.createElement('div');
+        domain.className = 'source-domain';
+        try { domain.textContent = new URL(source.url).hostname; }
+        catch { domain.textContent = source.url; }
+        const supportLabel = document.createElement('div');
+        supportLabel.className = 'source-support-label';
+        const phrases = sourcePhrases(answer, source.id);
+        supportLabel.textContent = phrases.length ? 'Respalda en la respuesta' : 'Fragmento encontrado';
+        card.append(link, domain, supportLabel);
+        if (phrases.length) {
+          for (const phrase of phrases) {
+            const phraseElement = document.createElement('div');
+            phraseElement.className = 'source-phrase';
+            phraseElement.textContent = `“${phrase}”`;
+            card.append(phraseElement);
+          }
+        } else {
+          const snippet = document.createElement('div');
+          snippet.className = 'source-snippet';
+          snippet.textContent = source.snippet || 'El modelo no vinculó una frase concreta con esta fuente.';
+          card.append(snippet);
+        }
+        list.append(card);
+      }
+      panel.append(header, list);
+      messageAccessoryAnchor(bubble).insertAdjacentElement('afterend', panel);
+    }
+
+    function editQuestionFrom(assistantIndex) {
+      if (controller) return;
+      const userIndex = findExchangeUserIndex(assistantIndex);
+      if (userIndex < 0 || !confirmHistoryTruncation(assistantIndex, 'Editar esta pregunta')) return;
+      const original = history[userIndex];
+      history = history.slice(0, userIndex);
+      persistHistoryMutation();
+      promptInput.value = original.content;
+      if (original.attachmentType) {
+        showAttachmentReminder('La pregunta usaba un archivo. Volvé a adjuntarlo antes de enviarla.');
+      }
+      promptInput.focus();
+    }
+
+    function regenerateResponse(assistantIndex, options = {}) {
+      if (controller) return;
+      const userIndex = findExchangeUserIndex(assistantIndex);
+      const actionLabel = options.forceWebSearch ? 'Buscar otras fuentes' : 'Regenerar esta respuesta';
+      if (userIndex < 0 || !confirmHistoryTruncation(assistantIndex, actionLabel)) return;
+      const original = history[userIndex];
+      history = history.slice(0, userIndex);
+      persistHistoryMutation();
+      promptInput.value = original.content;
+      if (original.attachmentType) {
+        showAttachmentReminder('Para regenerar esta respuesta, volvé a adjuntar el archivo original y presioná Enviar.');
+        promptInput.focus();
+        return;
+      }
+      if (options.forceWebSearch) {
+        pendingWebSearchRetry = {
+          excludeDomains: Array.isArray(options.excludeDomains) ? options.excludeDomains.slice(0, 8) : []
+        };
+        useWebInput.checked = true;
+        updateWebState();
+      }
+      void sendPrompt();
+    }
+
+    function continueFromResponse(assistantIndex) {
+      if (controller) return;
+      saveCurrentConversation();
+      const source = conversations.find(item => item.id === activeConversationId);
+      const now = Date.now();
+      const branchId = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+      const branchMessages = storedMessagesFromHistory(history.slice(0, assistantIndex + 1));
+      const baseTitle = String(source?.title || conversationTitle()).replace(/\s+· rama$/i, '');
+      const branch = {
+        id: branchId,
+        title: `${baseTitle} · rama`.slice(0, 200),
+        createdAt: now,
+        updatedAt: now,
+        messages: branchMessages
+      };
+      conversations = [branch, ...conversations.filter(item => item.id !== branchId)];
+      activeConversationId = branchId;
+      history = branchMessages.map(historyMessageFromStored);
+      writeStoredConversations();
+      renderActiveConversation();
+      renderConversationList();
+      errorBox.style.display = 'none';
+      promptInput.focus();
+    }
+
+    function deleteExchange(assistantIndex) {
+      if (controller) return;
+      const userIndex = findExchangeUserIndex(assistantIndex);
+      if (userIndex < 0 || !confirm('¿Eliminar solamente esta pregunta y su respuesta?')) return;
+      history.splice(userIndex, assistantIndex - userIndex + 1);
+      persistHistoryMutation();
+      promptInput.focus();
+    }
+
+    function messageActionButton(label, title, handler) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.title = title;
+      button.addEventListener('click', handler);
+      return button;
+    }
+
+    function setMessageActions(bubble, assistantIndex) {
+      if (!bubble || history[assistantIndex]?.role !== 'assistant') return;
+      const message = history[assistantIndex];
+      const toolbar = document.createElement('div');
+      toolbar.className = 'message-actions';
+      toolbar.dataset.historyIndex = String(assistantIndex);
+      if (message.stopped) {
+        const status = document.createElement('span');
+        status.className = 'message-action-status';
+        status.textContent = '■ Detenida';
+        toolbar.append(status);
+      }
+      const copyButton = messageActionButton('⧉ Copiar', 'Copiar esta respuesta', async () => {
+        try {
+          await copyPlainText(message.content);
+          const previous = copyButton.textContent;
+          copyButton.textContent = '✓ Copiada';
+          setTimeout(() => { copyButton.textContent = previous; }, 1200);
+        } catch {
+          showAttachmentReminder('No se pudo copiar la respuesta.');
+        }
+      });
+      toolbar.append(
+        copyButton,
+        messageActionButton('↻ Regenerar', 'Volver a generar esta respuesta', () => regenerateResponse(assistantIndex)),
+        messageActionButton('✎ Editar pregunta', 'Editar la pregunta de este intercambio', () => editQuestionFrom(assistantIndex)),
+        messageActionButton('⑂ Continuar desde acá', 'Crear una rama desde esta respuesta', () => continueFromResponse(assistantIndex)),
+        messageActionButton('🗑 Eliminar', 'Eliminar solamente este intercambio', () => deleteExchange(assistantIndex))
+      );
+      messageAccessoryAnchor(bubble).insertAdjacentElement('afterend', toolbar);
     }
 
     function selectedTextInside(range, element) {
@@ -1131,6 +1566,12 @@
             ].filter(Boolean).join(' · ');
             if (performanceSummary) lines.push(`_${performanceSummary}_`, '');
           }
+          const messageSources = sanitizeWebSources(message.webSources);
+          if (messageSources.length) {
+            lines.push('**Fuentes web:**', '');
+            for (const source of messageSources) lines.push(`- [${source.id}] [${source.title}](${source.url})`);
+            lines.push('');
+          }
         }
         lines.push('---', '');
       }
@@ -1146,15 +1587,7 @@
       if (!value || typeof value !== 'object' || !Array.isArray(value.messages)) return null;
       const messages = value.messages.map(message => {
         if (!message || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string') return null;
-        const messagePerformance = normalizePerformanceData(message.performance);
-        return {
-          role: message.role,
-          content: message.content,
-          ...(Number.isFinite(Number(message.durationMs)) && Number(message.durationMs) >= 0
-            ? { durationMs: Number(message.durationMs) }
-            : {}),
-          ...(messagePerformance ? { performance: messagePerformance } : {})
-        };
+        return storedHistoryMessage(message);
       }).filter(Boolean);
       if (!messages.length) return null;
       const now = Date.now();
@@ -1207,20 +1640,50 @@
       return normalized.length > 55 ? `${normalized.slice(0, 52)}…` : normalized;
     }
 
+    function storedHistoryMessage(message) {
+      const messagePerformance = normalizePerformanceData(message.performance);
+      const webSources = sanitizeWebSources(message.webSources);
+      const attachmentType = ['image', 'pdf'].includes(message.attachmentType) ? message.attachmentType : '';
+      const operation = message.operation === 'reverse-image' ? message.operation : '';
+      return {
+        role: message.role,
+        content: String(message.content || ''),
+        ...(Number.isFinite(Number(message.durationMs)) && Number(message.durationMs) >= 0
+          ? { durationMs: Math.round(Number(message.durationMs)) }
+          : {}),
+        ...(messagePerformance ? { performance: messagePerformance } : {}),
+        ...(message.role === 'assistant' && webSources.length ? { webSources } : {}),
+        ...(message.role === 'assistant' && message.stopped ? { stopped: true } : {}),
+        ...(message.role === 'user' && attachmentType ? { attachmentType } : {}),
+        ...(message.role === 'user' && operation ? { operation } : {})
+      };
+    }
+
+    function storedMessagesFromHistory(messages = history) {
+      return messages
+        .map(storedHistoryMessage)
+        .filter(message => ['user', 'assistant'].includes(message.role) && message.content);
+    }
+
+    function historyMessageFromStored(message) {
+      return {
+        role: message.role,
+        content: message.content,
+        ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {}),
+        ...(normalizePerformanceData(message.performance) ? { performance: normalizePerformanceData(message.performance) } : {}),
+        ...(message.role === 'assistant' && sanitizeWebSources(message.webSources).length
+          ? { webSources: sanitizeWebSources(message.webSources) }
+          : {}),
+        ...(message.role === 'assistant' && message.stopped ? { stopped: true } : {}),
+        ...(message.role === 'user' && ['image', 'pdf'].includes(message.attachmentType) ? { attachmentType: message.attachmentType } : {}),
+        ...(message.role === 'user' && message.operation === 'reverse-image' ? { operation: message.operation } : {})
+      };
+    }
+
     function saveCurrentConversation() {
       if (!history.some(message => message.role === 'user')) return;
       if (!activeConversationId) activeConversationId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const savedMessages = history.map(message => {
-        const messagePerformance = normalizePerformanceData(message.performance);
-        return {
-          role: message.role,
-          content: String(message.content || ''),
-          ...(Number.isFinite(message.durationMs) && message.durationMs >= 0
-            ? { durationMs: Math.round(message.durationMs) }
-            : {}),
-          ...(messagePerformance ? { performance: messagePerformance } : {})
-        };
-      }).filter(message => ['user', 'assistant'].includes(message.role) && message.content);
+      const savedMessages = storedMessagesFromHistory();
       const existing = conversations.find(item => item.id === activeConversationId);
       const conversation = {
         id: activeConversationId,
@@ -1244,7 +1707,11 @@
       return new Set(words.filter(word => !CONTEXT_STOP_WORDS.has(word)));
     }
 
-    function contextExcerpt(value, limit = MAX_CONTEXT_MESSAGE_CHARS) {
+    function currentDepthProfile() {
+      return DEPTH_PROFILES[depthInput.value] || DEPTH_PROFILES.normal;
+    }
+
+    function contextExcerpt(value, limit = DEPTH_PROFILES.normal.maxContextMessageChars) {
       const content = String(value || '');
       if (content.length <= limit) return content;
       const headLength = Math.floor(limit * .7);
@@ -1262,14 +1729,16 @@
       return sharedTerms * 10 + recency + (message.role === 'user' ? .25 : 0);
     }
 
-    function contextHistory(currentPrompt = '') {
+    function contextHistory(currentPrompt = '', profile = currentDepthProfile()) {
       const eligible = history
         .map((message, historyIndex) => ({
           message,
           historyIndex,
           content: String(message.contextContent || message.content || '')
         }))
-        .filter(item => item.content && ['user', 'assistant'].includes(item.message.role));
+        .filter(item => item.content
+          && ['user', 'assistant'].includes(item.message.role)
+          && !(item.message.role === 'assistant' && item.message.stopped));
       if (!eligible.length) return [];
 
       const queryTerms = contextTerms(currentPrompt || eligible.at(-1).message.content);
@@ -1281,12 +1750,12 @@
         priority.push(item);
       };
 
-      for (let index = eligible.length - 1; index >= Math.max(0, eligible.length - RECENT_CONTEXT_MESSAGES); index--) {
+      for (let index = eligible.length - 1; index >= Math.max(0, eligible.length - profile.recentContextMessages); index--) {
         queue(eligible[index]);
       }
 
       const older = eligible
-        .slice(0, Math.max(0, eligible.length - RECENT_CONTEXT_MESSAGES))
+        .slice(0, Math.max(0, eligible.length - profile.recentContextMessages))
         .map((item, index) => ({
           item,
           eligibleIndex: index,
@@ -1295,7 +1764,7 @@
         .sort((left, right) => right.score - left.score);
 
       for (const candidate of older) {
-        if (candidate.score < 1 || priority.length >= MAX_CONTEXT_MESSAGES) break;
+        if (candidate.score < 1 || priority.length >= profile.maxContextMessages) break;
         const pairOffset = candidate.item.message.role === 'user' ? 1 : -1;
         queue(eligible[candidate.eligibleIndex]);
         queue(eligible[candidate.eligibleIndex + pairOffset]);
@@ -1304,8 +1773,8 @@
       const selected = [];
       let characterCount = 0;
       for (const item of priority) {
-        if (selected.length >= MAX_CONTEXT_MESSAGES || characterCount >= MAX_CONTEXT_CHARS) break;
-        const excerpt = contextExcerpt(item.content, Math.min(MAX_CONTEXT_MESSAGE_CHARS, MAX_CONTEXT_CHARS - characterCount));
+        if (selected.length >= profile.maxContextMessages || characterCount >= profile.maxContextChars) break;
+        const excerpt = contextExcerpt(item.content, Math.min(profile.maxContextMessageChars, profile.maxContextChars - characterCount));
         if (!excerpt) continue;
         const contextMessage = { role: item.message.role, content: excerpt };
         if (item.historyIndex === history.length - 1 && Array.isArray(item.message.images)) {
@@ -1338,6 +1807,8 @@
           bubble.innerHTML = renderMarkdown(message.content);
           setMessageDuration(bubble, message.durationMs);
           setMessagePerformance(bubble, message.performance, message.durationMs);
+          setMessageSources(bubble, message.webSources, message.content, messageIndex);
+          setMessageActions(bubble, messageIndex);
         }
       }
       if (pendingHistoryJump && Number.isInteger(pendingHistoryJump.messageIndex)) {
@@ -1360,12 +1831,7 @@
       if (!conversation || controller) return;
       activeConversationId = conversation.id;
       pendingHistoryJump = Number.isInteger(messageIndex) ? { messageIndex } : null;
-      history = conversation.messages.map(message => ({
-        role: message.role,
-        content: message.content,
-        ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {}),
-        ...(normalizePerformanceData(message.performance) ? { performance: normalizePerformanceData(message.performance) } : {})
-      }));
+      history = conversation.messages.map(historyMessageFromStored);
       writeStoredConversations();
       renderActiveConversation();
       renderConversationList();
@@ -1535,12 +2001,7 @@
     function restoreLastConversation() {
       const conversation = conversations.find(item => item.id === activeConversationId);
       if (conversation) {
-        history = conversation.messages.map(message => ({
-          role: message.role,
-          content: message.content,
-          ...(Number.isFinite(message.durationMs) ? { durationMs: message.durationMs } : {}),
-          ...(normalizePerformanceData(message.performance) ? { performance: normalizePerformanceData(message.performance) } : {})
-        }));
+        history = conversation.messages.map(historyMessageFromStored);
       }
       else activeConversationId = null;
       renderActiveConversation();
@@ -1640,6 +2101,14 @@
       webLabel.textContent = useWebInput.checked
         ? 'Internet activado · esta consulta se envía a DuckDuckGo'
         : 'Internet apagado';
+    }
+
+    function updateDepthState() {
+      if (!DEPTH_PROFILES[depthInput.value]) depthInput.value = 'normal';
+      const profile = currentDepthProfile();
+      depthHint.textContent = profile.hint;
+      try { localStorage.setItem(DEPTH_STORAGE_KEY, depthInput.value); }
+      catch {}
     }
 
     function updateModelHint() {
@@ -1770,18 +2239,28 @@
       };
     }
 
-    async function loadRuntimeInfo(model) {
+    async function loadRuntimeInfo(model, signal) {
       try {
         const runtimeUrl = usingNodeBridge
           ? `/api/runtime?model=${encodeURIComponent(model)}&ollamaUrl=${encodeURIComponent(baseUrl())}`
           : `${baseUrl()}/api/ps`;
-        const response = await fetch(runtimeUrl, { cache: 'no-store' });
+        const response = await fetch(runtimeUrl, { cache: 'no-store', signal });
         if (!response.ok) return null;
         const payload = await response.json();
         return usingNodeBridge ? payload : runtimeFromOllamaPayload(payload, model);
-      } catch {
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
         return null;
       }
+    }
+
+    function stopGeneration() {
+      if (!controller) return;
+      stopRequested = true;
+      stopButton.disabled = true;
+      stopButton.textContent = 'Deteniendo…';
+      setStatus('Deteniendo respuesta…');
+      controller.abort();
     }
 
     function performanceFromResponse(chunk, runtime, model) {
@@ -1808,6 +2287,9 @@
       const imageFile = attachedFile && !isPdf ? attachedFile : null;
       const prompt = promptInput.value.trim() || (isPdf ? 'Resumí este PDF.' : (imageFile ? 'Describí esta imagen.' : ''));
       const model = modelInput.value.trim();
+      const depthMode = DEPTH_PROFILES[depthInput.value] ? depthInput.value : 'normal';
+      const depthProfile = DEPTH_PROFILES[depthMode];
+      const webSearchRetry = pendingWebSearchRetry;
       const imageUrl = extractFirstPublicUrl(prompt);
       const reverseImageSearch = !isPdf && isReverseImageSearch(prompt, imageFile, imageUrl);
       if (!prompt || controller || (!model && !reverseImageSearch)) return;
@@ -1846,8 +2328,13 @@
       }
 
       controller = new AbortController();
+      pendingWebSearchRetry = null;
+      stopRequested = false;
       setThinkingState(true);
       sendButton.disabled = true;
+      stopButton.hidden = false;
+      stopButton.disabled = false;
+      stopButton.textContent = '■ Detener';
       sendButton.textContent = reverseImageSearch ? 'Buscando…' : (isPdf ? 'Leyendo…' : 'Pensando…');
       errorBox.style.display = 'none';
       setStatus(reverseImageSearch ? 'Preparando búsqueda inversa…' : (isPdf ? 'Leyendo PDF…' : 'Generando…'), 'ok');
@@ -1856,9 +2343,17 @@
       promptInput.value = '';
       const assistantBubble = addMessage('assistant');
       let assistantText = '';
-      const userMessage = { role: 'user', content: prompt };
+      let responseWebSources = [];
+      let assistantSaved = false;
+      const userMessage = {
+        role: 'user',
+        content: prompt,
+        ...(isPdf ? { attachmentType: 'pdf' } : (imageFile ? { attachmentType: 'image' } : {})),
+        ...(reverseImageSearch ? { operation: 'reverse-image' } : {})
+      };
       if (attachmentBase64 && imageFile && !reverseImageSearch) userMessage.images = [attachmentBase64];
       history.push(userMessage);
+      userBubble.dataset.historyIndex = String(history.length - 1);
       saveCurrentConversation();
       imageInput.value = '';
       attachedName.textContent = '';
@@ -1911,6 +2406,10 @@
           const durationMs = Math.round(performance.now() - workStartedAt);
           setMessageDuration(assistantBubble, durationMs);
           history.push({ role: 'assistant', content: assistantText, durationMs });
+          const assistantIndex = history.length - 1;
+          assistantBubble.dataset.historyIndex = String(assistantIndex);
+          setMessageActions(assistantBubble, assistantIndex);
+          assistantSaved = true;
           saveCurrentConversation();
           setStatus('Ollama conectado', 'ok');
           void notifyAnswerReady();
@@ -1947,7 +2446,7 @@
         }).format(new Date());
         const systemMessage = {
           role: 'system',
-          content: `Respondé en español salvo que el usuario pida otro idioma. La fecha y hora actuales son ${currentDate} (${timeZone}). Mantené un estilo directo, natural y útil. Evitá introducciones defensivas y advertencias genéricas no solicitadas. Si una petición concreta no puede responderse, indicá el límite brevemente y ofrecé inmediatamente la alternativa más cercana que sí puedas resolver. Los mensajes anteriores pertenecen a la misma conversación: interpretá las repreguntas usando ese contexto y no las trates como consultas aisladas. Si el usuario pide repetir fuentes o enlaces de una respuesta anterior, copiá exactamente las URLs ya presentes en el historial; no inventes ni reemplaces enlaces. No inventes hechos ni supongas datos actuales. Si recibís resultados web, usalos como fuente factual y no digas que carecés de acceso a Internet.`
+          content: `Respondé en español salvo que el usuario pida otro idioma. La fecha y hora actuales son ${currentDate} (${timeZone}). Mantené un estilo directo, natural y útil. Evitá introducciones defensivas y advertencias genéricas no solicitadas. Si una petición concreta no puede responderse, indicá el límite brevemente y ofrecé inmediatamente la alternativa más cercana que sí puedas resolver. Los mensajes anteriores pertenecen a la misma conversación: interpretá las repreguntas usando ese contexto y no las trates como consultas aisladas. Si el usuario pide repetir fuentes o enlaces de una respuesta anterior, copiá exactamente las URLs ya presentes en el historial; no inventes ni reemplaces enlaces. No inventes hechos ni supongas datos actuales. Si recibís resultados web, usalos como fuente factual y no digas que carecés de acceso a Internet. ${depthProfile.instruction}`
         };
 
         if (useWebInput.checked && !usingNodeBridge) {
@@ -1961,9 +2460,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model,
-            messages: [systemMessage, ...contextHistory(prompt)],
+            messages: [systemMessage, ...contextHistory(prompt, depthProfile)],
             stream: true,
+            depth: depthMode,
+            options: {
+              temperature: 0,
+              num_ctx: depthProfile.numCtx,
+              num_predict: depthProfile.numPredict
+            },
             useWeb: useWebInput.checked && !isPdf,
+            forceWebSearch: Boolean(webSearchRetry),
+            excludeDomains: webSearchRetry?.excludeDomains || [],
             ollamaUrl: baseUrl()
           }),
           signal: controller.signal
@@ -1999,6 +2506,10 @@
             if (!line.trim()) continue;
             const chunk = JSON.parse(line);
             if (chunk.error) throw new Error(chunk.error);
+            if (chunk.web_sources) {
+              responseWebSources = sanitizeWebSources(chunk.web_sources.sources);
+              continue;
+            }
             if (chunk.done) finalOllamaChunk = chunk;
             assistantText += chunk.message?.content || '';
             assistantBubble.textContent = assistantText;
@@ -2010,6 +2521,7 @@
         if (pending.trim()) {
           const chunk = JSON.parse(pending);
           if (chunk.error) throw new Error(chunk.error);
+          if (chunk.web_sources) responseWebSources = sanitizeWebSources(chunk.web_sources.sources);
           if (chunk.done) finalOllamaChunk = chunk;
           assistantText += chunk.message?.content || '';
         }
@@ -2017,7 +2529,7 @@
         assistantBubble.dataset.copyText = assistantText;
         assistantBubble.innerHTML = renderMarkdown(assistantText);
         const durationMs = Math.round(performance.now() - workStartedAt);
-        const runtime = await loadRuntimeInfo(model);
+        const runtime = await loadRuntimeInfo(model, controller.signal);
         const responsePerformance = performanceFromResponse(finalOllamaChunk, runtime, model);
         setMessageDuration(assistantBubble, durationMs);
         setMessagePerformance(assistantBubble, responsePerformance, durationMs);
@@ -2025,14 +2537,43 @@
           role: 'assistant',
           content: assistantText,
           durationMs,
-          ...(responsePerformance ? { performance: responsePerformance } : {})
+          ...(responsePerformance ? { performance: responsePerformance } : {}),
+          ...(responseWebSources.length ? { webSources: responseWebSources } : {})
         });
+        const assistantIndex = history.length - 1;
+        assistantBubble.dataset.historyIndex = String(assistantIndex);
+        setMessageSources(assistantBubble, responseWebSources, assistantText, assistantIndex);
+        setMessageActions(assistantBubble, assistantIndex);
+        assistantSaved = true;
         saveCurrentConversation();
         setStatus('Ollama conectado', 'ok');
         if (assistantText.trim()) void notifyAnswerReady();
       } catch (error) {
         if (reverseImageSearch && !reverseSearchNavigated) closePendingSearchTabs(reverseSearchTabs);
-        if (error.name !== 'AbortError') {
+        if (error.name === 'AbortError' && stopRequested) {
+          setStatus('Respuesta detenida');
+          if (!assistantSaved && assistantText.trim()) {
+            assistantBubble.dataset.copyText = assistantText;
+            assistantBubble.innerHTML = renderMarkdown(assistantText);
+            const durationMs = Math.round(performance.now() - workStartedAt);
+            setMessageDuration(assistantBubble, durationMs);
+            history.push({
+              role: 'assistant',
+              content: assistantText,
+              durationMs,
+              stopped: true,
+              ...(responseWebSources.length ? { webSources: responseWebSources } : {})
+            });
+            const assistantIndex = history.length - 1;
+            assistantBubble.dataset.historyIndex = String(assistantIndex);
+            setMessageSources(assistantBubble, responseWebSources, assistantText, assistantIndex);
+            setMessageActions(assistantBubble, assistantIndex);
+            assistantSaved = true;
+            saveCurrentConversation();
+          } else if (!assistantSaved) {
+            assistantBubble.remove();
+          }
+        } else if (error.name !== 'AbortError') {
           showError(`No se pudo generar la respuesta: ${error.message}`);
           if (!assistantText) assistantBubble.remove();
           addMessage('error', `No se pudo generar la respuesta: ${error.message}`);
@@ -2040,6 +2581,10 @@
       } finally {
         setThinkingState(false);
         controller = null;
+        stopRequested = false;
+        stopButton.hidden = true;
+        stopButton.disabled = false;
+        stopButton.textContent = '■ Detener';
         sendButton.disabled = false;
         sendButton.textContent = 'Enviar';
         promptInput.focus();
@@ -2047,6 +2592,7 @@
     }
 
     sendButton.addEventListener('click', sendPrompt);
+    stopButton.addEventListener('click', stopGeneration);
     promptInput.addEventListener('keydown', event => {
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
@@ -2056,6 +2602,7 @@
     baseUrlInput.addEventListener('change', loadModels);
     useWebInput.addEventListener('change', updateWebState);
     modelInput.addEventListener('change', updateModelHint);
+    depthInput.addEventListener('change', updateDepthState);
     imageInput.addEventListener('change', () => {
       attachedName.textContent = imageInput.files?.[0]?.name || '';
     });
@@ -2098,8 +2645,13 @@
     async function initializeApp() {
       await loadStoredConversations();
       restoreLastConversation();
+      try {
+        const storedDepth = localStorage.getItem(DEPTH_STORAGE_KEY);
+        if (DEPTH_PROFILES[storedDepth]) depthInput.value = storedDepth;
+      } catch {}
       updateWebState();
       updateModelHint();
+      updateDepthState();
       if (usingNodeBridge) {
         const sendHeartbeat = () => fetch('/api/heartbeat', {
           method: 'POST',

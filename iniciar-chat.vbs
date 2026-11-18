@@ -8,5 +8,5 @@ command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden
 exitCode = shell.Run(command, 0, True)
 
 If exitCode <> 0 Then
-  MsgBox "No se pudo iniciar el chat. Verificá que Node.js y Ollama estén instalados.", 16, "Mini chat local"
+  MsgBox "No se pudo iniciar el chat. Ejecutá instalar-windows.bat para instalar Node.js, Ollama y los modelos.", 16, "Mini chat local"
 End If
